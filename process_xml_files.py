@@ -42,7 +42,7 @@ for idx_comment, comments in enumerate(root):
     print(comments.tag)
     print("This is length of comments: " + str(len(comments)))
 
-    c_online_id = comments[0].text
+    c_online_id = comments[0].text[8:]
     c_name = comments[1].text
     c_title = comments[2].text
     c_time = comments[3].text
@@ -66,7 +66,7 @@ for idx_comment, comments in enumerate(root):
             print(answers)
             a_comment_id = idx_comment +1
             a_answer_id = idx_answer + 1
-            a_online_id = answers[0].text
+            a_online_id = answers[0].text[(answers[0].text.find("reply") + 6):]
             a_name = answers[1].text
             a_title = answers[2].text
             a_time = answers[3].text
