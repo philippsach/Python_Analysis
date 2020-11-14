@@ -3,6 +3,11 @@
 
 import pandas as pd
 import os
+import datetime as dt
+import pytz  # for timezone handling
+import locale
+
+target_tz = pytz.timezone("UTC")
 
 # for testing purposes, create some sample data that can be worked on in here - later delete
 from process_xml_files import transform_xml_to_dataframe
@@ -59,27 +64,13 @@ def calculate_reply_length():
     return 1
 
 
-test = comments_df[
-    (comments_df["title"] != "Projektgründer") &
-    (comments_df["projectID"] == "pixeloccult") &
-    (comments_df["answerID"].isna())]
-n = len(test.index)
-print(test)
-print(n)
-
-answers = comments_df[
-    (comments_df["title"] == "Projektgründer") &
-    (comments_df["projectID"] == "pixeloccult") &
-    (comments_df["answerID"].notnull())
-]
-
-n_answers_by_creator = answers["commentID"].nunique()
-print(answers)
-print(n_answers_by_creator)
-# (comments_df["answerID"] is None)
-
 # test function
 print(calculate_reply_ratio(
         loc_comments_df= comments_df,
         projectID = "pixeloccult"
 ))
+
+# tests for reply speed
+print(comments_df["strTime"].values[0])
+print(comments_df["strTime"].values[1])
+print(comments_df["utcTime"].values[1] - comments_df["utcTime"].values[0])
