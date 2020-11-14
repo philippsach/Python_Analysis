@@ -10,6 +10,9 @@ from xml.etree import ElementTree as ET
 
 # LATER: this information needs to come from the loop within the file directory.
 # for now, define it as if it came from there the information
+def remove_new_lines(string_with_line_break):
+    string_without_line_break = string_with_line_break.replace("\n", " ")
+    return string_without_line_break
 
 
 def transform_xml_to_dataframe(entry):
@@ -27,7 +30,7 @@ def transform_xml_to_dataframe(entry):
         c_name = comments[1].text
         c_title = comments[2].text
         c_time = comments[3].text
-        c_content = comments[4].text
+        c_content = remove_new_lines(string_with_line_break=comments[4].text)
 
         rows.append(
             {"commentID": idx_comment + 1,  # python is 0-based
@@ -51,7 +54,7 @@ def transform_xml_to_dataframe(entry):
                 a_name = answers[1].text
                 a_title = answers[2].text
                 a_time = answers[3].text
-                a_content = answers[4].text
+                a_content = remove_new_lines(string_with_line_break=answers[4].text)
 
                 rows.append(
                     {"commentID": a_comment_id,
@@ -83,3 +86,8 @@ for entry in os.scandir(directory):
 toc = time.time()
 print(toc-toc, "sec Elapsed")
 
+print(comments_df.iloc[1,7])
+
+# possibility to save the dataframe as a csv to also manually have a look at it
+comments_df.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/comments_df.csv",
+                   sep = ";")
