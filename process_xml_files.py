@@ -44,7 +44,7 @@ def transform_xml_to_dataframe(entry):
         if len(comments) > 5:
             #print("There are also answers")
             for idx_answer, answers in enumerate(comments[5:]):
-                print(answers)
+                #print(answers)
                 a_comment_id = idx_comment + 1
                 a_answer_id = idx_answer + 1
                 a_online_id = answers[0].text[(answers[0].text.find("reply") + 6):]
@@ -75,7 +75,9 @@ directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/com
 
 comments_df = pd.DataFrame([])
 for entry in os.scandir(directory):
-    if entry.path.endswith(".xml") and entry.is_file():
+    # files with 37 byte size do not contain comments and are directly skipped
+    if entry.path.endswith(".xml") and entry.is_file() and entry.stat().st_size>37:
+        print(entry.stat().st_size)
         comments_df = comments_df.append(transform_xml_to_dataframe(entry))
 
 toc = time.time()
