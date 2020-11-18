@@ -1,7 +1,6 @@
 import elementpath
 import re
 import os
-import timeit
 import locale
 import pytz
 import datetime as dt

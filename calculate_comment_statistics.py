@@ -5,7 +5,23 @@ import pandas as pd
 import os
 import datetime as dt
 import pytz  # for timezone handling
-import locale
+import nltk  # for natural language processing
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+# import spacy  # for lemmatization
+
+nltk.download("punkt")  # punkt resource is a pre-trained model that helps to tokenize words and sentences
+nltk.download("stopwords")
+
+# define sentiment intensity analyzer model
+sid = SentimentIntensityAnalyzer()
+
+print("hello 1")
+from nltk.corpus import stopwords
+print("hello 2")
+stop_words = stopwords.words('english')
+print("hello 3")
+
+pd.options.mode.chained_assignment = None
 
 target_tz = pytz.timezone("UTC")
 
@@ -64,14 +80,14 @@ def calculate_reply_speed(loc_comments_df, projectID):
     comments_of_backers = loc_comments_df[
         (loc_comments_df["title"] != "Projektgründer") &
         (loc_comments_df["answerID"].isna()) &
-        (loc_comments_df["projectID"] == "pixeloccult")
+        (loc_comments_df["projectID"] == projectID)
         ].reset_index()
 
     comments_of_backers = comments_of_backers[["commentID", "answerID", "projectID", "title", "utcTime"]]
 
     answers_of_creator = loc_comments_df[
         (loc_comments_df["title"] == "Projektgründer") &
-        (loc_comments_df["projectID"] == "pixeloccult") &
+        (loc_comments_df["projectID"] == projectID) &
         (loc_comments_df["answerID"].notnull())
         ].groupby("commentID").first().reset_index()
 
@@ -90,9 +106,47 @@ def calculate_reply_speed(loc_comments_df, projectID):
     return average_reply_speed_hours
 
 
-def calculate_reply_length():
-    # they used number of bytes in a comment, can we also just do it like this?
-    return 1
+def calculate_reply_length(loc_comments_df, projectID):
+    # calculates the average number of words in a comment or reply of a CREATOR in the project
+    # AS OF NOW: also counts e.g. ":)" or "xx" as words which in fact are not words
+    # alternative: paper used number of bytes in a comment (had english and chinese comments)
+
+    loc_comments_df = loc_comments_df[
+        (loc_comments_df["title"] == "Projektgründer") &
+        (loc_comments_df["projectID"] == projectID)]
+
+    loc_comments_df["replyLength"] = loc_comments_df.apply(lambda x: len(x["content"].split()), axis=1)
+    average_reply_length = loc_comments_df["replyLength"].mean()
+
+    return average_reply_length
+
+
+def calculate_comment_length(loc_comments_df, projectID):
+    # calculate the average number of words in a comment or reply of a BACKER in this project
+
+    loc_comments_df = loc_comments_df[
+        (loc_comments_df["title"] != "Projektgründer") &
+        (loc_comments_df["projectID"] == projectID)
+    ]
+
+    loc_comments_df["commentLength"] = loc_comments_df.apply(lambda x: len(x["content"].split()), axis = 1)
+    average_comment_length = loc_comments_df["commentLength"].mean()
+
+    return average_comment_length
+
+
+def calculate_comment_sentiment(loc_comments_df, projectID):
+    # calculate the average sentiment of comments, at the moment differ between backer and project creator
+
+    loc_comments_df["sentiment"] = loc_comments_df.apply(lambda x: sid.polarity_scores(x["content"])["compound"], axis=1)
+
+    backer_comments = loc_comments_df[loc_comments_df["title"] != "Projektgründer"]
+    creator_comments = loc_comments_df[loc_comments_df["title"] == "Projektgründer"]
+
+    average_backer_sentiment = backer_comments["sentiment"].mean()
+    average_creator_sentiment = creator_comments["sentiment"].mean()
+
+    return average_backer_sentiment, average_creator_sentiment
 
 
 # test function
@@ -101,13 +155,27 @@ print(calculate_reply_ratio(
         projectID="pixeloccult"
 ))
 
-# tests for reply speed
-print(comments_df["strTime"].values[0])
-print(comments_df["strTime"].values[1])
-print(comments_df["utcTime"].values[1] - comments_df["utcTime"].values[0])
 
 # test function
 print(calculate_reply_speed(
+    loc_comments_df=comments_df,
+    projectID="pixeloccult"
+))
+
+# test function
+print(calculate_reply_length(
+     loc_comments_df=comments_df,
+     projectID="pixeloccult"
+ ))
+
+# test function
+print(calculate_comment_length(
+    loc_comments_df=comments_df,
+    projectID="pixeloccult"
+))
+
+# test function
+print(calculate_comment_sentiment(
     loc_comments_df=comments_df,
     projectID="pixeloccult"
 ))
