@@ -44,7 +44,7 @@ def calculate_reply_ratio(loc_comments_df, projectID):
     # calculate number of comments where the projedt initiator has replied at least once
     answers_of_creator = loc_comments_df[
         (loc_comments_df["title"] == "Projektgründer") &
-        (loc_comments_df["projectID"] == "pixeloccult") &
+        (loc_comments_df["projectID"] == projectID) &
         (loc_comments_df["answerID"].notnull())
     ]
     n_comments_answered_by_creator = answers_of_creator["commentID"].nunique()
@@ -55,8 +55,39 @@ def calculate_reply_ratio(loc_comments_df, projectID):
     return reply_ratio
 
 
-def calculate_reply_speed():
-    return 1
+def calculate_reply_speed(loc_comments_df, projectID):
+    # calculates the average reply speed in hours
+    # only takes into account comments of backers that have been answered by the project creator
+    # if project creator has answered multiple times to that comment, only the first answer is taken into account
+    # if project creator has not answered, it is also not taken into account
+
+    comments_of_backers = loc_comments_df[
+        (loc_comments_df["title"] != "Projektgründer") &
+        (loc_comments_df["answerID"].isna()) &
+        (loc_comments_df["projectID"] == "pixeloccult")
+        ].reset_index()
+
+    comments_of_backers = comments_of_backers[["commentID", "answerID", "projectID", "title", "utcTime"]]
+
+    answers_of_creator = loc_comments_df[
+        (loc_comments_df["title"] == "Projektgründer") &
+        (loc_comments_df["projectID"] == "pixeloccult") &
+        (loc_comments_df["answerID"].notnull())
+        ].groupby("commentID").first().reset_index()
+
+    answers_of_creator = answers_of_creator[["commentID", "answerID", "projectID", "title", "utcTime"]]
+
+    comments_of_backers_with_answers_of_creators = answers_of_creator.merge(comments_of_backers,
+                                                                            on=["projectID", "commentID"], how="left")
+
+    comments_of_backers_with_answers_of_creators["replySpeed"] = \
+        comments_of_backers_with_answers_of_creators["utcTime_x"] - comments_of_backers_with_answers_of_creators[
+            "utcTime_y"]
+
+    average_reply_speed_hours = comments_of_backers_with_answers_of_creators[
+                                    "replySpeed"].dt.total_seconds().mean() / 3600
+
+    return average_reply_speed_hours
 
 
 def calculate_reply_length():
@@ -66,11 +97,17 @@ def calculate_reply_length():
 
 # test function
 print(calculate_reply_ratio(
-        loc_comments_df= comments_df,
-        projectID = "pixeloccult"
+        loc_comments_df=comments_df,
+        projectID="pixeloccult"
 ))
 
 # tests for reply speed
 print(comments_df["strTime"].values[0])
 print(comments_df["strTime"].values[1])
 print(comments_df["utcTime"].values[1] - comments_df["utcTime"].values[0])
+
+# test function
+print(calculate_reply_speed(
+    loc_comments_df=comments_df,
+    projectID="pixeloccult"
+))
