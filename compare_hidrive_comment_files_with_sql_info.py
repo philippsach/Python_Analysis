@@ -89,7 +89,7 @@ def needRescraping(dataframe):
     elif (dataframe["comments"] > 25):
         bol_rescraping = True
     # projects for which there is not even a corresponding xml file
-    elif(math.isnan(dataframe["filesize"])):
+    elif(dataframe["comments"] > 0 and math.isnan(dataframe["filesize"])):
         bol_rescraping = True
     
     return bol_rescraping
@@ -103,5 +103,9 @@ art_metadata_new["bolScrapeAgain"] = art_metadata_new.apply(needRescraping, axis
 
 art_projects_scrape_again = art_metadata_new[art_metadata_new["bolScrapeAgain"]]
 
+art_projects_scrape_again["downloaded"] = False
+art_projects_scrape_again["error_description"] = ""
+art_projects_scrape_again["withdrawn_comments_new"] = ""
+
 # save art dataframe
-art_projects_scrape_again.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info/art_xml_tobescraped.csv")
+art_projects_scrape_again.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info/art_xml_tobescraped.csv", Index = False)
