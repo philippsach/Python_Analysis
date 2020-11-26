@@ -102,7 +102,6 @@ art_metadata_new = art_metadata.merge(art_xml_df, on="Project_Nr", how="left")
 art_metadata_new["bolScrapeAgain"] = art_metadata_new.apply(needRescraping, axis=1)
 
 art_projects_scrape_again = art_metadata_new[art_metadata_new["bolScrapeAgain"]]
-
 art_projects_scrape_again["downloaded"] = False
 art_projects_scrape_again["error_description"] = ""
 art_projects_scrape_again["withdrawn_comments_new"] = ""

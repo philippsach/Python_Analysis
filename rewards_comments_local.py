@@ -9,11 +9,15 @@ from time import sleep
 from dicttoxml import dicttoxml
 from xml.dom.minidom import parseString
 from datetime import datetime
+import multiprocessing as mp
 
 # old transformation steps for reference
 # overview_file = overview_file[overview_file["comments"] > 0]
 # overview_file.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info/art_xml_tobescraped_current_status.csv", index = False)
 
+mp.set_start_method('spawn', force=True)
+__spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)"
+#print(mp.get_start_method())
 
 overview_file = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info/art_xml_tobescraped_current_status.csv")
 overview_file["error_description"] = overview_file["error_description"].astype("string")
@@ -199,7 +203,7 @@ def get_all_input(link, pr_nr, path, n_comments_sql):
 
 def wrapper_function(path):
     print("let the crawling begin")  # by now, have not tested project 1. also, now crawling last 1000 to see how long it takes
-    for row in overview_file.loc[5000:].itertuples(index=True, name="Project"):
+    for row in overview_file.itertuples(index=True, name="Project"):
         # overview_file.at[row.Index, "downloaded"] = False
         print(row.Project_Nr)
         print(row.Link)
@@ -215,14 +219,71 @@ def wrapper_function(path):
             overview_file.at[row.Index, "error_description"] = "accessing the link"
         else:
             overview_file.at[row.Index, "downloaded"] = True
-            overview_file.at[row.Index, "withdrawn_comments"] = withdrawn_count
+            overview_file.at[row.Index, "withdrawn_comments_new"] = withdrawn_count
 
 
 # save_path = "/Users/philippsach/HiDrive/public/Kickstarter_Data/art/Comments"
 save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info"
 
-wrapper_function(path=save_path)
+#wrapper_function(path=save_path)
 
+overview_file = overview_file.iloc[1000:1004]
+
+print("juhuu outside")
+
+def new_get_all_input(row):
+    link = row[3]
+    pr_nr = row[0]
+    path = save_path
+    n_comments_sql = row[1]
+    try:
+        print("=============================================================")
+        print("Time: " + str(datetime.now()))
+        response = requests.get(link)
+        if response.status_code == 200:
+            print(response.status_code)
+            # soup = BeautifulSoup(response.text, "lxml")
+        else:
+            # print("CONNECTION ERROR: " + str(response.status_code))
+            if response.status_code == 429:
+                print("TIMEOUT, OVERLOAD")
+                sleep(60)
+                print("Retry last link")
+                response = requests.get(link)
+                # print(response.status_code)
+                if response.status_code != 200:
+                    print("SOMETHING WENT WRONG --> Wait another interval")
+                    sleep(60)
+                    response = requests.get(link)
+                    print(response.status_code)
+                # soup = BeautifulSoup(response.text, "lxml")
+            else:
+                print("UNKNOWN ERROR - DO SOMETHING")
+                print("<--------------------->")
+                return 10, float("NaN")
+
+    except Exception as e:
+        print("Error -> Mark Link as Error in Database")
+        print(e)
+        return 10, float("NaN")
+
+    error_code, withdrawn_count = crawl_comments(link=link,
+                                                 pr_nr=pr_nr,
+                                                 path=path,
+                                                 n_comments_sql=n_comments_sql)
+
+    return pr_nr, error_code, withdrawn_count
+
+
+# testing the new setup <3
+if __name__ == "__main__":
+    num_processes = mp.cpu_count()
+    pool = mp.Pool(num_processes)
+    result = pool.map(new_get_all_input, overview_file.itertuples(index=False, name=None), chunksize=1)
+
+# checking how long it takes with old functions in sequence
+
+#wrapper_function(path=save_path)
 
 # just testing some random stuff, e.g. with wrong url's what happens etc.
-get_all_input("https://www.kickstarter.com/projects/arten2/the-art-of-eddie-nunes", pr_nr = "NUNEZZZZ", path=save_path )
+#get_all_input("https://www.kickstarter.com/projects/arten2/the-art-of-eddie-nunes", pr_nr = "NUNEZZZZ", path=save_path )
