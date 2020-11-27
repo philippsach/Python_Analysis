@@ -24,16 +24,28 @@ category_data = {
 
 category_df = pd.DataFrame(category_data)
 
-category_df["path"] = category_df.apply(
-    lambda x: "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/" + 
-    x["category"] + 
-    "/Comments", 
-    axis = 1)
+if os.path.isdir("Python_Analysis"):  # windows path
+    category_df["path"] = category_df.apply(
+        lambda x: "C:/Users/Philipp/Documents/XML_local_download/" + 
+        x["category"] + 
+        "/Comments", 
+        axis = 1)
+else:  # mac
+    category_df["path"] = category_df.apply(
+        lambda x: "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/" + 
+        x["category"] + 
+        "/Comments", 
+        axis = 1)
 
 category = category_df.iloc[0,0]
 save_path = category_df.iloc[0,1]
 
-overview_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/overview_files/" + category + "_metadata.csv"
+if os.path.isdir("Python_Analysis"):  # then  we are on the windows laptop
+    overview_base_path = "Python_Analysis"
+else:
+    overview_base_path = ""
+
+overview_path = overview_base_path + "/data/overview_files/" + category + "_metadata.csv"
 overview_file = pd.read_csv(overview_path)
 overview_file["error_description"] = overview_file["error_description"].astype("string")
 overview_file = overview_file.sort_values(by="comments")
