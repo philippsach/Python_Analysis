@@ -35,6 +35,7 @@ save_path = category_df.iloc[0,1]
 overview_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/overview_files/" + category + "_metadata.csv"
 overview_file = pd.read_csv(overview_path)
 overview_file["error_description"] = overview_file["error_description"].astype("string")
+overview_file = overview_file.sort_values(by="comments")
 
 # only process projects with less than 1500 comments in a parallelized manner
 # the rest needs to be taken care of separately
@@ -252,7 +253,12 @@ def new_get_all_input(row):
     try:
         print("=============================================================")
         print("Time: " + str(datetime.now()))
-        response = requests.get(link)
+        #session = requests.Session() # new line
+        #retry = requests.packages.urllib3.util.retry.Retry(connect=3, backoff_factor=0.5)
+        #adapter = requests.adapters.HTTPAdapter(max_retries=retry)
+        #session.mount("http://", adapter)
+        #session.get(link)
+        response = requests.get(link, verify=False)
         if response.status_code == 200:
             print(response.status_code)
             # soup = BeautifulSoup(response.text, "lxml")
@@ -262,19 +268,19 @@ def new_get_all_input(row):
                 print("TIMEOUT, OVERLOAD")
                 sleep(60)
                 print("Retry last link")
-                response = requests.get(link)
+                response = requests.get(link, verify=False)
                 # print(response.status_code)
                 if response.status_code != 200:
                     print("SOMETHING WENT WRONG --> Wait another interval")
                     sleep(60)
-                    response = requests.get(link)
+                    response = requests.get(link, verify=False)
                     print(response.status_code)
                 # soup = BeautifulSoup(response.text, "lxml")
             else:
                 print("UNKNOWN ERROR - DO SOMETHING")
                 print("<--------------------->")
                 return 10, float("NaN")
-
+    
     except Exception as e:
         print("Error -> Mark Link as Error in Database")
         print(e)
@@ -292,8 +298,12 @@ def new_get_all_input(row):
 if __name__ == "__main__":
     num_processes = mp.cpu_count()
     pool = mp.Pool(num_processes)
-    result = pool.map(new_get_all_input, overview_file.itertuples(index=False, name=None), chunksize=1)
-
+    result_1000 = pool.map(new_get_all_input, overview_file.iloc[0:1000].itertuples(index=False, name=None), chunksize=2)
+    result_2000 = pool.map(new_get_all_input, overview_file.iloc[1001:2000].itertuples(index=False, name=None), chunksize=2)
+    result_3000 = pool.map(new_get_all_input, overview_file.iloc[2001:3000].itertuples(index=False, name=None), chunksize=2)
+    result_4000 = pool.map(new_get_all_input, overview_file.iloc[3001:4000].itertuples(index=False, name=None), chunksize=2)
+    result_5000 = pool.map(new_get_all_input, overview_file.iloc[4001:5000].itertuples(index=False, name=None), chunksize=2)
+    result_6000 = pool.map(new_get_all_input, overview_file.iloc[5001:].itertuples(index=False, name=None), chunksize=2)
     #result = pd.DataFrame(result, columns=["Project_Nr", "error_code", "withdrawn_count"])
     
 # checking how long it takes with old functions in sequence
