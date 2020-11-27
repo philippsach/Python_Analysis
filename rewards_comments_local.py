@@ -246,6 +246,7 @@ def wrapper_function(path):
             
 
 def new_get_all_input(row):
+    sleep(2)
     link = row[3]
     pr_nr = row[0]
     path = save_path
@@ -253,12 +254,17 @@ def new_get_all_input(row):
     try:
         print("=============================================================")
         print("Time: " + str(datetime.now()))
-        #session = requests.Session() # new line
-        #retry = requests.packages.urllib3.util.retry.Retry(connect=3, backoff_factor=0.5)
-        #adapter = requests.adapters.HTTPAdapter(max_retries=retry)
-        #session.mount("http://", adapter)
-        #session.get(link)
-        response = requests.get(link, verify=False)
+        session = requests.Session() # new line
+        retry = requests.packages.urllib3.util.retry.Retry(
+            total=3,
+            status_forcelist=[61, 429, 500, 502, 503, 504],
+            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            backoff_factor=2)
+        adapter = requests.adapters.HTTPAdapter(max_retries=retry)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        response = session.get(link)
+        #response = requests.get(link, verify=False)
         if response.status_code == 200:
             print(response.status_code)
             # soup = BeautifulSoup(response.text, "lxml")
