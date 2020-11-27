@@ -11,19 +11,38 @@ from xml.dom.minidom import parseString
 from datetime import datetime
 import multiprocessing as mp
 
-# old transformation steps for reference
-# overview_file = overview_file[overview_file["comments"] > 0]
-# overview_file.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info/art_xml_tobescraped_current_status.csv", index = False)
-
 mp.set_start_method('spawn', force=True)
 __spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)"
 #print(mp.get_start_method())
 
-overview_file = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info/art_xml_tobescraped_current_status.csv")
-overview_file["error_description"] = overview_file["error_description"].astype("string")
-print(overview_file.dtypes)
+category_data = {
+    "category": ["art", "comic", "craft", "dance", "design",
+                 "fashion", "food", "games", "journalism", "music",
+                 "photo", "publishing", "technology", "theater", "video"]
+}
 
-# overview_file_test = overview_file[overview_file["comments"] > 0]  # ONLY NEEDED BECAUSE I DID IT WRONG BEFORE
+category_df = pd.DataFrame(category_data)
+
+category_df["path"] = category_df.apply(
+    lambda x: "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/" + 
+    x["category"] + 
+    "/Comments", 
+    axis = 1)
+
+category = category_df.iloc[0,0]
+save_path = category_df.iloc[0,1]
+
+overview_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/overview_files/" + category + "_metadata.csv"
+overview_file = pd.read_csv(overview_path)
+overview_file["error_description"] = overview_file["error_description"].astype("string")
+
+# only process projects with less than 1500 comments in a parallelized manner
+# the rest needs to be taken care of separately
+overview_file = overview_file[overview_file["comments"]<=1500]
+
+# print(overview_file.dtypes)
+print("juhuu outside")
+
 
 def crawl_comments(link, pr_nr, path, n_comments_sql):
     print("Now crawling comments")
@@ -222,14 +241,8 @@ def wrapper_function(path):
             overview_file.at[row.Index, "withdrawn_comments_new"] = withdrawn_count
 
 
-# save_path = "/Users/philippsach/HiDrive/public/Kickstarter_Data/art/Comments"
-save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML Info"
-
 #wrapper_function(path=save_path)
-
-overview_file = overview_file.iloc[1000:1004]
-
-print("juhuu outside")
+            
 
 def new_get_all_input(row):
     link = row[3]
@@ -281,9 +294,11 @@ if __name__ == "__main__":
     pool = mp.Pool(num_processes)
     result = pool.map(new_get_all_input, overview_file.itertuples(index=False, name=None), chunksize=1)
 
+    #result = pd.DataFrame(result, columns=["Project_Nr", "error_code", "withdrawn_count"])
+    
 # checking how long it takes with old functions in sequence
+# wrapper_function(path=save_path)
 
-#wrapper_function(path=save_path)
 
 # just testing some random stuff, e.g. with wrong url's what happens etc.
 #get_all_input("https://www.kickstarter.com/projects/arten2/the-art-of-eddie-nunes", pr_nr = "NUNEZZZZ", path=save_path )

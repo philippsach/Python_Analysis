@@ -37,13 +37,13 @@ def getSize(filename):
 def needRescraping(dataframe):
     bol_rescraping = False
     # projects with comments in metadata but file size 37: means no comments in xml file
-    if (dataframe["comments"] > 0 and dataframe["filesize"] == 37):
+    if (dataframe["comments"] > 0 and dataframe["filesize"] == 37 and dataframe["comments"] != dataframe["withdrawn_comments"]):
         bol_rescraping = True
     # projects with more than 25 comments - before webscraper did not click show more
     elif (dataframe["comments"] > 25):
         bol_rescraping = True
     # projects for which there is not even a corresponding xml file
-    elif (dataframe["comments"] > 0 and math.isnan(dataframe["filesize"])):
+    elif (dataframe["comments"] > 0 and math.isnan(dataframe["filesize"]) and dataframe["comments"] != dataframe["withdrawn_comments"]):
         bol_rescraping = True
 
     return bol_rescraping
@@ -76,7 +76,7 @@ for row in category_df.itertuples(index=True, name="cat"):
         metadata["withdrawn_comments_new"] = ""
         
         # calculate path where file should be saved
-        where_to_save = save_path + row.category + "metadata.csv"
+        where_to_save = save_path + row.category + "_metadata.csv"
         
         # save file
         metadata.to_csv(where_to_save, index=False)
