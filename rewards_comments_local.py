@@ -10,6 +10,7 @@ from dicttoxml import dicttoxml
 from xml.dom.minidom import parseString
 from datetime import datetime
 import multiprocessing as mp
+import os
 
 mp.set_start_method('spawn', force=True)
 __spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)"
