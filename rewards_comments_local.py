@@ -24,18 +24,13 @@ category_data = {
 
 category_df = pd.DataFrame(category_data)
 
-if os.path.isdir("Python_Analysis"):  # windows path
-    category_df["path"] = category_df.apply(
-        lambda x: "C:/Users/Philipp/Documents/XML_local_download/" + 
-        x["category"] + 
-        "/Comments", 
-        axis = 1)
-else:  # mac
-    category_df["path"] = category_df.apply(
-        lambda x: "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/" + 
-        x["category"] + 
-        "/Comments", 
-        axis = 1)
+
+# mac path
+category_df["path"] = category_df.apply(
+    lambda x: "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/" + 
+    x["category"] + 
+    "/Comments", 
+    axis = 1)
 
 category = category_df.iloc[0,0]
 save_path = category_df.iloc[0,1]
@@ -198,6 +193,7 @@ def get_all_input(link, pr_nr, path, n_comments_sql):
     try:
         print("=============================================================")
         print("Time: " + str(datetime.now()))
+        sleep(10)
         response = requests.get(link)
         if response.status_code == 200:
             print(response.status_code)
@@ -312,17 +308,19 @@ def new_get_all_input(row):
 
     return pr_nr, error_code, withdrawn_count
 
+# testing it in sequential way....
+wrapper_function(path=save_path)
 
 # testing the new setup <3
-if __name__ == "__main__":
-    num_processes = mp.cpu_count()
-    pool = mp.Pool(num_processes)
-    result_1000 = pool.map(new_get_all_input, overview_file.iloc[0:1000].itertuples(index=False, name=None), chunksize=2)
-    result_2000 = pool.map(new_get_all_input, overview_file.iloc[1001:2000].itertuples(index=False, name=None), chunksize=2)
-    result_3000 = pool.map(new_get_all_input, overview_file.iloc[2001:3000].itertuples(index=False, name=None), chunksize=2)
-    result_4000 = pool.map(new_get_all_input, overview_file.iloc[3001:4000].itertuples(index=False, name=None), chunksize=2)
-    result_5000 = pool.map(new_get_all_input, overview_file.iloc[4001:5000].itertuples(index=False, name=None), chunksize=2)
-    result_6000 = pool.map(new_get_all_input, overview_file.iloc[5001:].itertuples(index=False, name=None), chunksize=2)
+# if __name__ == "__main__":
+#     num_processes = mp.cpu_count()
+#     pool = mp.Pool(num_processes)
+#     result_1000 = pool.map(new_get_all_input, overview_file.iloc[0:1000].itertuples(index=False, name=None), chunksize=2)
+#     result_2000 = pool.map(new_get_all_input, overview_file.iloc[1001:2000].itertuples(index=False, name=None), chunksize=2)
+#     result_3000 = pool.map(new_get_all_input, overview_file.iloc[2001:3000].itertuples(index=False, name=None), chunksize=2)
+#     result_4000 = pool.map(new_get_all_input, overview_file.iloc[3001:4000].itertuples(index=False, name=None), chunksize=2)
+#     result_5000 = pool.map(new_get_all_input, overview_file.iloc[4001:5000].itertuples(index=False, name=None), chunksize=2)
+#     result_6000 = pool.map(new_get_all_input, overview_file.iloc[5001:].itertuples(index=False, name=None), chunksize=2)
     #result = pd.DataFrame(result, columns=["Project_Nr", "error_code", "withdrawn_count"])
     
 # checking how long it takes with old functions in sequence
