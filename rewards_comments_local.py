@@ -11,6 +11,9 @@ from xml.dom.minidom import parseString
 from datetime import datetime
 import multiprocessing as mp
 import os
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 mp.set_start_method('spawn', force=True)
 __spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)"
@@ -40,7 +43,7 @@ if os.path.isdir("Python_Analysis"):  # then  we are on the windows laptop
 else:
     overview_base_path = ""
 
-overview_path = overview_base_path + "./data/overview_files/" + category + "_metadata.csv"
+overview_path = overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv"
 overview_file = pd.read_csv(overview_path)
 overview_file["error_description"] = overview_file["error_description"].astype("string")
 overview_file = overview_file.sort_values(by="comments")
@@ -96,105 +99,137 @@ def crawl_comments(link, pr_nr, path, n_comments_sql):
                 break
             except StaleElementReferenceException:
                 break
-
-    if not driver.find_element_by_id("react-project-comments"):
+    
+    # if project is a hidden project (like https://www.kickstarter.com/projects/1372947955/build-your-paradise for example)
+    # then break out of here
+    if driver.find_elements_by_id("hidden_project"):
+        print("hidden project")
+        error_code = 20
+        withdrawn_count = float("NaN")
         driver.close()
-
-    iframe = driver.find_element_by_id("react-project-comments")
     
-    comment_dict = {}
-    all_comments = iframe.find_elements_by_xpath("// *[ @ id = \"react-project-comments\"] / ul / li")
-    # all_comments_css = iframe.find_elements_by_css_selector("#react-project-comments > ul > li")
     
-    comment_count = 0
-    withdrawn_count = 0
+    else:
     
-    for comment in all_comments:
-        if not comment.find_elements_by_class_name("flex"):
-            break
-
-        comment_count += 1
-        personal_info = comment.find_elements_by_class_name("flex")[0]
-
-        if not personal_info.find_elements_by_tag_name("span"):
-            print("Comment corrupted --> Backer withdraw")
-            withdrawn_count += 1
-            continue
-
-        name = personal_info.find_elements_by_tag_name("span")[0].text
-        # print(name)
-        title = personal_info.find_elements_by_tag_name("span")[1]
-
-        if title:
-            title_name = title.text
-            # print(title_name)
-
-        id = personal_info.find_element_by_class_name("comment-link").get_attribute("href")
-        id = id.split('?')[1]
-        # print(id)
-
-        content = comment.find_elements_by_class_name("flex")[2].text
-        # print(content)
-
-        time = personal_info.find_element_by_tag_name("time").get_attribute("title")
-        # print(time)
-
-        new_dict = {'ID': id,
-                    'Name': name,
-                    'Title': title_name,
-                    'Time': time,
-                    'Content': content}
-
-        # answers = comment.find_element_by_class_name("pl6 pt2")
-        all_answers = comment.find_elements_by_tag_name("li")
-        answer_count = 0
-        # print(len(all_answers))
-
-        for answer in all_answers:
-            answer_count += 1
-            personal_info_answer = answer.find_elements_by_class_name("flex")[0]
-
-            if not personal_info_answer.find_elements_by_tag_name("span"):
-                print("Comment corrupted --> Backer withdraw")
-                withdrawn_count += 1
-                continue
-
-            answer_name = personal_info_answer.find_elements_by_tag_name("span")[0].text
-            answer_title = personal_info_answer.find_elements_by_tag_name("span")[1]
-
-            if answer_title:
-                answer_title_name = answer_title.text
-
-            answer_id = personal_info_answer.find_element_by_class_name("comment-link").get_attribute("href")
-            answer_id = answer_id.split('?')[1]
-
-            answer_content = answer.find_elements_by_class_name("flex")[2].text
-            answer_time = personal_info_answer.find_element_by_tag_name("time").get_attribute("title")
-
-            new_dict.update({'Answer ' + str(answer_count): {'ID': answer_id, 'Name': answer_name,
-                                                             'Title': answer_title_name, 'Time': answer_time,
-                                                             'Content': answer_content}})
-
-        comment_dict.update({"Comment " + str(comment_count): new_dict})
-        # print(new_dict)
+        if not driver.find_elements_by_id("react-project-comments"):
+            print("haven't found react-project-comments")
+            error_code = 30
+            withdrawn_count = float("NaN")
+            driver.close()
+        
+        else:   
     
-    driver.close()
-    
-    xml = dicttoxml(comment_dict, custom_root='comments', attr_type=False)
-    dom = parseString(xml)
+            iframe = driver.find_element_by_id("react-project-comments")
+            
+            comment_dict = {}
+            all_comments = iframe.find_elements_by_xpath("// *[ @ id = \"react-project-comments\"] / ul / li")
+            # all_comments_css = iframe.find_elements_by_css_selector("#react-project-comments > ul > li")
+            
+            comment_count = 0
+            withdrawn_count = 0
+            
+            for comment in all_comments:
+                if not comment.find_elements_by_class_name("flex"):
+                    break
+        
+                comment_count += 1
+                personal_info = comment.find_elements_by_class_name("flex")[0]
+        
+                if not personal_info.find_elements_by_tag_name("span"):
+                    print("Comment corrupted --> Backer withdraw")
+                    withdrawn_count += 1
+                    continue
+        
+                name = personal_info.find_elements_by_tag_name("span")[0].text
+                # print(name)
+                title = personal_info.find_elements_by_tag_name("span")[1]
+        
+                if title:
+                    title_name = title.text
+                    # print(title_name)
+        
+                id = personal_info.find_element_by_class_name("comment-link").get_attribute("href")
+                id = id.split('?')[1]
+                # print(id)
+        
+                content = comment.find_elements_by_class_name("flex")[2].text
+                # print(content)
+        
+                time = personal_info.find_element_by_tag_name("time").get_attribute("title")
+                # print(time)
+        
+                new_dict = {'ID': id,
+                            'Name': name,
+                            'Title': title_name,
+                            'Time': time,
+                            'Content': content}
+        
+                # answers = comment.find_element_by_class_name("pl6 pt2")
+                all_answers = comment.find_elements_by_tag_name("li")
+                answer_count = 0
+                # print(len(all_answers))
+        
+                for answer in all_answers:
+                    answer_count += 1
+                    personal_info_answer = answer.find_elements_by_class_name("flex")[0]
+        
+                    if not personal_info_answer.find_elements_by_tag_name("span"):
+                        print("Comment corrupted --> Backer withdraw")
+                        withdrawn_count += 1
+                        continue
+        
+                    answer_name = personal_info_answer.find_elements_by_tag_name("span")[0].text
+                    answer_title = personal_info_answer.find_elements_by_tag_name("span")[1]
+        
+                    if answer_title:
+                        answer_title_name = answer_title.text
+        
+                    answer_id = personal_info_answer.find_element_by_class_name("comment-link").get_attribute("href")
+                    answer_id = answer_id.split('?')[1]
+        
+                    answer_content = answer.find_elements_by_class_name("flex")[2].text
+                    answer_time = personal_info_answer.find_element_by_tag_name("time").get_attribute("title")
+        
+                    new_dict.update({'Answer ' + str(answer_count): {'ID': answer_id, 'Name': answer_name,
+                                                                     'Title': answer_title_name, 'Time': answer_time,
+                                                                     'Content': answer_content}})
+        
+                comment_dict.update({"Comment " + str(comment_count): new_dict})
+                # print(new_dict)
+            
+            driver.close()
+            
+            xml = dicttoxml(comment_dict, custom_root='comments', attr_type=False)
+            dom = parseString(xml)
+        
+            with open(path + "/" + "comment_" + pr_nr + ".xml", mode="w", encoding="utf-8") as f:
+                f.write(dom.toprettyxml())
+            
+            error_code = 1
 
-    with open(path + "/" + "comment_" + pr_nr + ".xml", mode="w", encoding="utf-8") as f:
-        f.write(dom.toprettyxml())
-
-    return 1, withdrawn_count
+    return error_code, withdrawn_count
     
 
 def get_all_input(link, pr_nr, path, n_comments_sql):
     try:
         print("=============================================================")
         print("Time: " + str(datetime.now()))
-        sleep(10)
-        response = requests.get(link)
+        print("Link: " + link)
+        sleep(5)
+        
+        # session = requests.Session() # new line
+        # retry = requests.packages.urllib3.util.retry.Retry(
+        #     connect=3,
+        #     status_forcelist=[61, 429, 500, 502, 503, 504],
+        #     method_whitelist=["HEAD", "GET", "OPTIONS"],
+        #     backoff_factor=2)
+        # adapter = requests.adapters.HTTPAdapter(max_retries=retry)
+        # session.mount("http://", adapter)
+        # session.mount("https://", adapter)
+        # response = session.get(link, verify=False)
+        
+        response = requests.get(link, verify=False)
+        
         if response.status_code == 200:
             print(response.status_code)
             # soup = BeautifulSoup(response.text, "lxml")
@@ -204,13 +239,13 @@ def get_all_input(link, pr_nr, path, n_comments_sql):
                 print("TIMEOUT, OVERLOAD")
                 sleep(60)
                 print("Retry last link")
-                response = requests.get(link)
+                response = requests.get(link, verify=False)
                 # print(response.status_code)
                 if response.status_code != 200:
                     print("SOMETHING WENT WRONG --> Wait another interval")
                     sleep(60)
-                    response = requests.get(link)
-                    print(response.status_code)
+                    response = requests.get(link, verify=False)
+                    print(requests.status_code)
                 # soup = BeautifulSoup(response.text, "lxml")
             else:
                 print("UNKNOWN ERROR - DO SOMETHING")
@@ -221,6 +256,8 @@ def get_all_input(link, pr_nr, path, n_comments_sql):
         print("Error -> Mark Link as Error in Database")
         print(e)
         return 10, float("NaN")
+    
+    
     
     error_code, withdrawn_count = crawl_comments(link=link,
                                                  pr_nr=pr_nr,
@@ -234,24 +271,24 @@ def wrapper_function(path):
     print("let the crawling begin")  # by now, have not tested project 1. also, now crawling last 1000 to see how long it takes
     for row in overview_file.itertuples(index=True, name="Project"):
         # overview_file.at[row.Index, "downloaded"] = False
-        print(row.Project_Nr)
-        print(row.Link)
-        error_code, withdrawn_count = get_all_input(
-            link=row.Link,
-            pr_nr=row.Project_Nr,
-            path=path,
-            n_comments_sql=row.comments
-            )
+        if row.downloaded == False:  # only download projects that have not been downloaded before
+            error_code, withdrawn_count = get_all_input(
+                link=row.Link,
+                pr_nr=row.Project_Nr,
+                path=path,
+                n_comments_sql=row.comments
+                )
         
-        # problem occured, mark this in our row!!
-        if error_code == 10:
-            overview_file.at[row.Index, "error_description"] = "accessing the link"
-        else:
-            overview_file.at[row.Index, "downloaded"] = True
-            overview_file.at[row.Index, "withdrawn_comments_new"] = withdrawn_count
-
-
-#wrapper_function(path=save_path)
+            # problem occured, mark this in our row!!
+            if error_code == 10:
+                overview_file.at[row.Index, "error_description"] = "accessing the link"
+            if error_code == 20:
+                overview_file.at[row.Index, "error_description"] = "hidden project"
+            if error_code == 30:
+                overview_file.at[row.Index, "error_description"] = "no react-project-comments"
+            else:
+                overview_file.at[row.Index, "downloaded"] = True
+                overview_file.at[row.Index, "withdrawn_comments_new"] = withdrawn_count
             
 
 def new_get_all_input(row):
@@ -272,7 +309,7 @@ def new_get_all_input(row):
         adapter = requests.adapters.HTTPAdapter(max_retries=retry)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
-        response = session.get(link)
+        response = session.get(link, verify=False)
         #response = requests.get(link, verify=False)
         if response.status_code == 200:
             print(response.status_code)
@@ -310,6 +347,8 @@ def new_get_all_input(row):
 
 # testing it in sequential way....
 wrapper_function(path=save_path)
+
+overview_file.to_csv(overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv")
 
 # testing the new setup <3
 # if __name__ == "__main__":
