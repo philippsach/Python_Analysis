@@ -35,8 +35,8 @@ category_df["path"] = category_df.apply(
     "/Comments", 
     axis = 1)
 
-category = category_df.iloc[0,0]
-save_path = category_df.iloc[0,1]
+category = category_df.iloc[4,0]
+save_path = category_df.iloc[4,1]
 
 if os.path.isdir("Python_Analysis"):  # then  we are on the windows laptop
     overview_base_path = "Python_Analysis"
@@ -348,7 +348,7 @@ def new_get_all_input(row):
 # testing it in sequential way....
 wrapper_function(path=save_path)
 
-overview_file.to_csv(overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv")
+overview_file.to_csv(overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv", index=False)
 
 # testing the new setup <3
 # if __name__ == "__main__":
