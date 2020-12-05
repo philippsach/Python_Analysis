@@ -2,6 +2,17 @@
 import pandas as pd
 import nltk
 
+
+# import wordlist about common misspellings
+misspelling_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/data/word_lists/common_misspellings.csv"
+df_misspellings = pd.read_csv(misspelling_path)
+list_misspellings = df_misspellings["Misspelling"].to_list()
+
+# import comments_df and filter to those comments that should be analysed - here: the comments of the creator
+comments_df = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/comments_df.csv",sep=";")
+psycap_comments_df = comments_df[comments_df["title"] == "Projektgründer"].copy()
+
+
 # definition of the word lists
 
 list_organizational_optimism = ["aspire", "aspirer", "aspires", "aspiring", "aspiringly",
@@ -107,6 +118,7 @@ list_organizational_confidence = ["ability", "accomplish", "accomplished", "acco
                                   "undoubtedly", "undoubting", "unflappability", "unflappable", "unflinching",
                                   "unflinchingly", "unhesitating", "unhesitatingly", "unwavering", "unwaveringly"]
 
+
 # obtain search patterns for regex expressions
 # (?i) to ignore case of letters
 # (?<!\S) to do exact matching, so that "aspired" is not matched by a search for "aspire"
@@ -123,25 +135,71 @@ search_organizational_resilience = r"(?i)(?<!\S)({})(?!\S)".format(string_organi
 string_organizational_confidence = "|".join(list_organizational_confidence)
 search_organizational_confidence = r"(?i)(?<!\S)({})(?!\S)".format(string_organizational_confidence)
 
-print(string_organizational_optimism)
-print(search_organizational_optimism)
+string_misspellings = "|".join(list_misspellings)
+search_misspellings = r"(?i)(?<!\S)({})(?!\S)".format(string_misspellings)
+
+#print(string_organizational_optimism)
+#print(search_organizational_optimism)
+
+
+# define a function that counts the occurence of that
+def count_words_in_list(loc_comments_df):
+
+    loc_comments_df["count_organizational_optimism"] = loc_comments_df.content.str.count(search_organizational_optimism)
+    loc_comments_df["count_organizational_hope"] = loc_comments_df.content.str.count(search_organizational_hope)
+    loc_comments_df["count_organizational_resilience"] = loc_comments_df.content.str.count(search_organizational_resilience)
+    loc_comments_df["count_organizational_confidence"] = loc_comments_df.content.str.count(search_organizational_confidence)
+    
+    loc_comments_df["count_misspellings"] = loc_comments_df.content.str.count(search_misspellings)
+    
+    loc_comments_df["count_psycap"] = (
+        loc_comments_df["count_organizational_optimism"] +
+        loc_comments_df["count_organizational_hope"] +
+        loc_comments_df["count_organizational_resilience"] +
+        loc_comments_df["count_organizational_confidence"]
+    )
+    
+    loc_comments_df["commentLength"] = loc_comments_df.apply(lambda x: len(x["content"].split()), axis=1)
+
+    return loc_comments_df
+
+
+psycap_comments_df = count_words_in_list(loc_comments_df=psycap_comments_df)
+
+psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
+psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism" : "commentLength"]
+psycap_comments_df["shareOptimism"] =    psycap_comments_df["count_organizational_optimism"] / psycap_comments_df["commentLength"]
+psycap_comments_df["shareHope"] =        psycap_comments_df["count_organizational_hope"] / psycap_comments_df["commentLength"]
+psycap_comments_df["shareResilience"] =  psycap_comments_df["count_organizational_resilience"] / psycap_comments_df["commentLength"]
+psycap_comments_df["shareConfidence"] =  psycap_comments_df["count_organizational_confidence"] / psycap_comments_df["commentLength"]
+psycap_comments_df["sharePsyCap"] =      psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
+psycap_comments_df["shareMisspellings"]  = psycap_comments_df["count_misspellings"] / psycap_comments_df["commentLength"]
+
+
+
+
+
+
+
+
+
 
 
 # it also counts occurences of e.g. "aspired" even though this is not in the word list
-test_df = pd.DataFrame([
-    "hello Aspired world Aspire",
-    "What is wrong with you?",
-    "I Reassure you that I am Positive"
-    ],
-    columns = ["words"]
-)
+# test_df = pd.DataFrame([
+#     "hello Aspired world Aspire",
+#     "What is wrong with you?",
+#     "I Reassure you that I am Positive"
+#     ],
+#     columns = ["content"]
+# )
 
-test_df["count_organizational_optimism"] = test_df.words.str.count(search_organizational_optimism)
-test_df["count_organizational_hope"] = test_df.words.str.count(search_organizational_hope)
-test_df["count_organizational_resilience"] = test_df.words.str.count(search_organizational_resilience)
-test_df["count_organizational_confidence"] = test_df.words.str.count(search_organizational_confidence)
+# test_df["count_organizational_optimism"] = test_df.content.str.count(search_organizational_optimism)
+# test_df["count_organizational_hope"] = test_df.content.str.count(search_organizational_hope)
+# test_df["count_organizational_resilience"] = test_df.content.str.count(search_organizational_resilience)
+# test_df["count_organizational_confidence"] = test_df.content.str.count(search_organizational_confidence)
 
-print(test_df.words.str.count(r"(?<!\S)(Aspire|Reassure|Positive)(?!\S)"))
-print(test_df.words.str.count(search_organizational_optimism))
+# print(test_df.content.str.count(r"(?<!\S)(Aspire|Reassure|Positive)(?!\S)"))
+# print(test_df.content.str.count(search_organizational_optimism))
 
-print(test_df)
+# print(test_df)

@@ -348,6 +348,8 @@ def new_get_all_input(row):
 # testing it in sequential way....
 wrapper_function(path=save_path)
 
+
+
 overview_file.to_csv(overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv", index=False)
 
 # testing the new setup <3
