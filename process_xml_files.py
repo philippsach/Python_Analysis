@@ -13,13 +13,32 @@ from xml.etree import ElementTree as ET
 # LATER: this information needs to come from the loop within the file directory.
 # for now, define it as if it came from there the information
 def remove_new_lines(string_with_line_break):
+    #print(string_with_line_break)
     string_without_line_break = string_with_line_break.replace("\n", " ")
     return string_without_line_break
 
 
+def try_parsing_date(text):
+    # formats: "%d. %B %Y %H:%M %Z" for old format; "%B %d, %Y %I:%M %p %Z" for new format on Mac due to english system settings
+    for fmt in ("%d. %B %Y %H:%M %Z", "%B %d, %Y %I:%M %p %Z"):
+        try:
+            if fmt == "%d. %B %Y %H:%M %Z":
+                locale.setlocale(locale.LC_ALL, "de_DE")
+                #print("try German format of string: ", text)
+            elif fmt == "%B %d, %Y %I:%M %p %Z":
+                locale.setlocale(locale.LC_ALL, "en_US")
+                #print("try english format of string: ", text)
+
+            return dt.datetime.strptime(text, fmt)
+
+        except ValueError:
+            pass
+        #raise ValueError("no valid date format found")
+
 def calc_utc_time_from_string(str_datetime):
-    locale.setlocale(locale.LC_ALL, "de_DE")
-    naive_datetime = dt.datetime.strptime(str_datetime, "%d. %B %Y %H:%M %Z")
+    #locale.setlocale(locale.LC_ALL, "de_DE")
+    #naive_datetime = dt.datetime.strptime(str_datetime, "%d. %B %Y %H:%M %Z")
+    naive_datetime = try_parsing_date(str_datetime)
     str_timezone_info = str_datetime[(str_datetime.rfind(" ") + 1):]
 
     if str_timezone_info == "CEST":  # is already aware in "CET" of difference of summer and winter time
@@ -45,11 +64,16 @@ def transform_xml_to_dataframe(entry):
 
     for idx_comment, comments in enumerate(root):
 
+
         c_online_id = comments[0].text[8:]
         c_name = comments[1].text
         c_title = comments[2].text
         c_str_time = comments[3].text
-        c_content = remove_new_lines(string_with_line_break=comments[4].text)
+
+        if comments[4].text is not None:
+            c_content = remove_new_lines(string_with_line_break=comments[4].text)
+        else:
+            c_content = ""
         c_utc_time = calc_utc_time_from_string(c_str_time)
 
         rows.append(
@@ -97,20 +121,28 @@ def transform_xml_to_dataframe(entry):
 
 tic = time.time()
 
-directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/comments"
+# directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/comments"
+directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/art/Comments"
 
 comments_df = pd.DataFrame([])
 for entry in os.scandir(directory):
     # files with 37 byte size do not contain comments and are directly skipped
     if entry.path.endswith(".xml") and entry.is_file() and entry.stat().st_size>37:
-        print(entry.stat().st_size)
+        print("file: ", entry, " with size: ", entry.stat().st_size)
         comments_df = comments_df.append(transform_xml_to_dataframe(entry))
+
+# tested for a specific case where content of a comment is empty
+#test_comments_df = pd.DataFrame([])
+#for entry in os.scandir(directory):
+#    if entry.path.endswith("mment_13619749.xml") and entry.is_file() and entry.stat().st_size>37:
+#        print("file: ", entry, " with size: ", entry.stat().st_size)
+#        test_comments_df = test_comments_df.append(transform_xml_to_dataframe(entry))
+
 
 toc = time.time()
 print(toc-toc, "sec Elapsed")
 
-print(comments_df.iloc[1,7])
+#print(comments_df.iloc[1,7])
 
 # possibility to save the dataframe as a csv to also manually have a look at it
-comments_df.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/comments_df.csv",
-                   sep = ";")
+comments_df.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
