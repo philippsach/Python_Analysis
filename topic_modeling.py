@@ -81,6 +81,26 @@ def get_all_info_from_database():
     return processed_docs
 
 
+def get_all_info_from_comments_df(comments_path):
+    comments_df = pd.read_csv(comments_path)
+    comments_df["title"] = comments_df["title"].astype(str)
+    comments_df["projectID"] = comments_df["projectID"].astype(str)
+    comments_df["content"] = comments_df["content"].astype(str)
+    comments_df_backers = comments_df[comments_df["title"].str.contains("Creator") == False]
+    comments_df_backers = comments_df_backers[["projectID", "content"]]
+
+    #print(comments_df["title"].unique())
+
+    joined_comments_df_backers = comments_df_backers.groupby("projectID")["content"].apply(" ".join).reset_index()
+
+    comments_dict = dict(zip(joined_comments_df_backers.projectID, joined_comments_df_backers.content))
+
+    processed_docs = []
+    for key in comments_dict:
+        processed_docs.append(gensim.utils.simple_preprocess(comments_dict[key], deacc=True))
+
+    return processed_docs
+
 def compute_coherence_values(dictionary, corpus, texts, limit, start=2, step=3):
     """
     Compute c_v coherence for various number of topics
@@ -131,7 +151,9 @@ def format_topics_sentences(ldamodel, corpus, texts):
 
 
 def main():
-    processed_docs = get_all_info_from_database()
+    # processed_docs = get_all_info_from_database()
+    comments_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv"
+    processed_docs = get_all_info_from_comments_df(comments_path)
     print(processed_docs)
     pprint("Got Docs")
     bigram = gensim.models.Phrases(processed_docs, min_count=5, threshold=100)
@@ -232,6 +254,7 @@ def main():
     df_dominant_topic.columns = ['Document_No', 'Dominant_Topic', 'Topic_Perc_Contrib', 'Keywords', 'Text']
 
     # Show
+    print("now the dominant topics are being displayed")
     df_dominant_topic.head(10)
     print(df_dominant_topic)
 

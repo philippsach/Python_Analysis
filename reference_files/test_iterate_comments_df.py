@@ -11,50 +11,7 @@ from gensim.models import CoherenceModel
 # spacy for lemmatization
 import spacy
 
-def get_all_info_from_database():
-    cnx = pymysql.connect(user="phil_sach",
-                          password="entthesis2020",
-                          host="85.214.204.221",
-                          database="thesis")
 
-    cursor = cnx.cursor()
-    query = "Select Project_Nr, Long_Description from thesis.design Where state = \"erfolgreich\" or state = " \
-            "\"Failed\" Limit 10;"
-    cursor.execute(query)
-    data_text = {}
-    for (nr, description) in cursor:
-        print("nr: ", nr)  # , "; description: ", description)
-        des = description.replace('\\n', " ")
-        #des = literal_eval(des)
-        data_text.update({nr: des})
-    cursor.close()
-    cnx.close()
-    processed_docs = []
-    print(data_text)
-    for key in data_text:
-        for question in data_text[key]:
-
-            print("Original document: ")
-            words = []
-            for word in data_text[key][question].split(' '):
-                words.append(word)
-            print(words)
-            print('\n\n tokenized and lemmatized document: ')
-            print(preprocess(data_text[key][question]))
-            break
-
-            processed_docs.append(gensim.utils.simple_preprocess(data_text[key][question], deacc=True))
-    return processed_docs
-
-
-def main():
-    processed_docs = get_all_info_from_database()
-    print(processed_docs)
-    pprint("Got Docs")
-
-
-#if __name__ == "__main__":
- #   main()
 
 
 test_dict = {
@@ -75,3 +32,22 @@ for key in test_dict:
     processed_docs.append(gensim.utils.simple_preprocess(test_dict[key], deacc=True))
 
 print("processed docs: ", processed_docs)
+
+comments_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv"
+
+comments_df = pd.read_csv(comments_path)
+comments_df["title"] = comments_df["title"].astype(str)
+comments_df["projectID"] = comments_df["projectID"].astype(str)
+comments_df["content"] = comments_df["content"].astype(str)
+comments_df_backers = comments_df[comments_df["title"].str.contains("Creator")==False]
+
+comments_df_backers = comments_df_backers[["projectID", "content"]]
+
+print(comments_df["title"].unique())
+
+joined_comments_df_backers = comments_df_backers.groupby("projectID")["content"].apply(" ".join).reset_index()
+
+comments_dict = dict(zip(joined_comments_df_backers.projectID, joined_comments_df_backers.content))
+
+for (nr, description) in comments_dict:
+    print(nr)
