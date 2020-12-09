@@ -63,30 +63,21 @@ def get_all_info_from_database():
 
     cursor = cnx.cursor()
     query = "Select Project_Nr, Long_Description from thesis.design Where state = \"erfolgreich\" or state = " \
-            "\"Failed\" Limit 1000;"
+            "\"Failed\" Limit 10;"
     cursor.execute(query)
     data_text = {}
     for (nr, description) in cursor:
-        print("description: ", description, "; nr: ", nr)
+        print("nr: ", nr)  # , "; description: ", description)
         des = description.replace('\\n', " ")
         #des = literal_eval(des)
         data_text.update({nr: des})
     cursor.close()
     cnx.close()
     processed_docs = []
+    print(data_text)
     for key in data_text:
-        for question in data_text[key]:
-            '''
-            print("Original document: ")
-            words = []
-            for word in data_text[key][question].split(' '):
-                words.append(word)
-            print(words)
-            print('\n\n tokenized and lemmatized document: ')
-            print(preprocess(data_text[key][question]))
-            break
-            '''
-            processed_docs.append(gensim.utils.simple_preprocess(data_text[key][question], deacc=True))
+        processed_docs.append(gensim.utils.simple_preprocess(data_text[key], deacc=True))
+
     return processed_docs
 
 
@@ -141,6 +132,7 @@ def format_topics_sentences(ldamodel, corpus, texts):
 
 def main():
     processed_docs = get_all_info_from_database()
+    print(processed_docs)
     pprint("Got Docs")
     bigram = gensim.models.Phrases(processed_docs, min_count=5, threshold=100)
     trigram = gensim.models.Phrases(bigram[processed_docs], threshold=100)
@@ -156,7 +148,7 @@ def main():
     data_words_bigrams = make_bigrams(data_words_nostops, bigram_mod)
 
     # Initialize spacy 'en' model, keeping only tagger component (for efficiency)
-    nlp = spacy.load('de', disable=['parser', 'ner'])
+    nlp = spacy.load('en', disable=['parser', 'ner'])
 
     # Do lemmatization keeping only noun, adj, vb, adv
     data_lemmatized = lemmatization(data_words_bigrams, nlp, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
