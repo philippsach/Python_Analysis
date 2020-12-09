@@ -190,8 +190,12 @@ def main():
     vis = pyLDAvis.gensim.prepare(lda_model, corpus, id2word)
     pyLDAvis.save_html(vis, 'LDA_Visualization.html')
     '''
-    #os.environ['MALLET_HOME'] = 'C:\\new_mallet\\mallet-2.0.8'
-    mallet_path = 'C:\\new_mallet\\mallet-2.0.8\\bin\\mallet.bat'  # update this path
+    # os.environ["MALLET_HOME"] = "/Users/philippsach/Documents/Uni/Masterarbeit/Pyhton_Analysis/aux_files/mallet-2.0.8"
+    os.environ.update({"MALLET_HOME": "/Users/philippsach/Documents/Uni/Masterarbeit/Pyhton_Analysis/aux_files/mallet-2.0.8"})
+    # path = os.getcwd()
+    # mallet_relative_path = "aux_files/mallet-2.0.8/bin/mallet.bat"
+    # mallet_path = os.path.join(path, mallet_relative_path) # update this path
+    mallet_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Pyhton_Analysis/aux_files/mallet-2.0.8/bin/mallet.bat"
     ldamallet = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=15, id2word=id2word)
 
     # Show Topics
