@@ -212,16 +212,15 @@ def main():
     vis = pyLDAvis.gensim.prepare(lda_model, corpus, id2word)
     pyLDAvis.save_html(vis, 'LDA_Visualization.html')
     '''
-    #os.environ["MALLET_HOME"] = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/aux_files/mallet-2.0.8"
     os.environ.update({"MALLET_HOME": "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/aux_files/mallet-2.0.8"})
-    # path = os.getcwd()
-    # mallet_relative_path = "aux_files/mallet-2.0.8/bin/mallet.bat"
-    # mallet_path = os.path.join(path, mallet_relative_path) # update this path
     mallet_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/aux_files/mallet-2.0.8/bin/mallet"
+
     ldamallet = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=15, id2word=id2word)
 
     # Show Topics
-    #pprint(ldamallet.show_topics(formatted=False))
+    pprint(ldamallet.show_topics(formatted=False))
+    global topics
+    topics = ldamallet.show_topics(formatted=True)
 
     # Compute Coherence Score
     coherence_model_ldamallet = CoherenceModel(model=ldamallet, texts=data_lemmatized, dictionary=id2word,
@@ -250,6 +249,7 @@ def main():
     df_topic_sents_keywords = format_topics_sentences(ldamodel=ldamallet, corpus=corpus, texts=processed_docs)
 
     # Format
+    global df_dominant_topic
     df_dominant_topic = df_topic_sents_keywords.reset_index()
     df_dominant_topic.columns = ['Document_No', 'Dominant_Topic', 'Topic_Perc_Contrib', 'Keywords', 'Text']
 
