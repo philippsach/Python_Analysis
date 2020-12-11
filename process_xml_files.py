@@ -1,4 +1,3 @@
-import elementpath
 import re
 import os
 import locale
@@ -8,36 +7,39 @@ import time
 import pandas as pd
 from xml.etree import ElementTree as ET
 
-#tree = ET.parse("/Users/philippsach/Downloads/comment_107772823.xml")
+# tree = ET.parse("/Users/philippsach/Downloads/comment_107772823.xml")
+
 
 # LATER: this information needs to come from the loop within the file directory.
 # for now, define it as if it came from there the information
 def remove_new_lines(string_with_line_break):
-    #print(string_with_line_break)
+    # print(string_with_line_break)
     string_without_line_break = string_with_line_break.replace("\n", " ")
     return string_without_line_break
 
 
 def try_parsing_date(text):
-    # formats: "%d. %B %Y %H:%M %Z" for old format; "%B %d, %Y %I:%M %p %Z" for new format on Mac due to english system settings
+    # formats: "%d. %B %Y %H:%M %Z" for old format; "%B %d, %Y %I:%M %p %Z"
+    # for new format on Mac due to english system settings
     for fmt in ("%d. %B %Y %H:%M %Z", "%B %d, %Y %I:%M %p %Z"):
         try:
             if fmt == "%d. %B %Y %H:%M %Z":
                 locale.setlocale(locale.LC_ALL, "de_DE")
-                #print("try German format of string: ", text)
+                # print("try German format of string: ", text)
             elif fmt == "%B %d, %Y %I:%M %p %Z":
                 locale.setlocale(locale.LC_ALL, "en_US")
-                #print("try english format of string: ", text)
+                # print("try english format of string: ", text)
 
             return dt.datetime.strptime(text, fmt)
 
         except ValueError:
             pass
-        #raise ValueError("no valid date format found")
+        # raise ValueError("no valid date format found")
+
 
 def calc_utc_time_from_string(str_datetime):
-    #locale.setlocale(locale.LC_ALL, "de_DE")
-    #naive_datetime = dt.datetime.strptime(str_datetime, "%d. %B %Y %H:%M %Z")
+    # locale.setlocale(locale.LC_ALL, "de_DE")
+    # naive_datetime = dt.datetime.strptime(str_datetime, "%d. %B %Y %H:%M %Z")
     naive_datetime = try_parsing_date(str_datetime)
     str_timezone_info = str_datetime[(str_datetime.rfind(" ") + 1):]
 
@@ -56,14 +58,14 @@ def calc_utc_time_from_string(str_datetime):
 def transform_xml_to_dataframe(entry):
     tree = ET.parse(entry.path)
     root = tree.getroot()
-    project_id = re.search(pattern= "comment_(.*?).xml", string = entry.name).group(1)
+    project_id = re.search(pattern="comment_(.*?).xml", string=entry.name).group(1)
 
     # general definitions, could maybe be done outside of the function
-    df_cols = ["commentID", "answerID", "projectID", "commentOnlineID", "name", "title", "strTime", "utcTime", "content"]
+    df_cols = ["commentID", "answerID", "projectID", "commentOnlineID",
+               "name", "title", "strTime", "utcTime", "content"]
     rows = []
 
     for idx_comment, comments in enumerate(root):
-
 
         c_online_id = comments[0].text[8:]
         c_name = comments[1].text
@@ -90,9 +92,9 @@ def transform_xml_to_dataframe(entry):
         )
 
         if len(comments) > 5:
-            #print("There are also answers")
+            # print("There are also answers")
             for idx_answer, answers in enumerate(comments[5:]):
-                #print(answers)
+                # print(answers)
                 a_comment_id = idx_comment + 1
                 a_answer_id = idx_answer + 1
                 a_online_id = answers[0].text[(answers[0].text.find("reply") + 6):]
@@ -115,34 +117,38 @@ def transform_xml_to_dataframe(entry):
                      }
                 )
 
-
     out_df = pd.DataFrame(rows, columns=df_cols)
     return out_df
 
-tic = time.time()
 
-# directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/comments"
-directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/art/Comments"
+def wrapper_process_xml(local_directory):
+    local_comments_df = pd.DataFrame([])
 
-comments_df = pd.DataFrame([])
-for entry in os.scandir(directory):
-    # files with 37 byte size do not contain comments and are directly skipped
-    if entry.path.endswith(".xml") and entry.is_file() and entry.stat().st_size>37:
-        print("file: ", entry, " with size: ", entry.stat().st_size)
-        comments_df = comments_df.append(transform_xml_to_dataframe(entry))
+    for entry in os.scandir(local_directory):
+        if entry.path.endswith(".xml") and entry.is_file() and entry.stat().st_size > 37:
+            print("file: ", entry, " with size: ", entry.stat().st_size)
+            local_comments_df = local_comments_df.append(transform_xml_to_dataframe(entry))
 
-# tested for a specific case where content of a comment is empty
-#test_comments_df = pd.DataFrame([])
-#for entry in os.scandir(directory):
-#    if entry.path.endswith("mment_13619749.xml") and entry.is_file() and entry.stat().st_size>37:
-#        print("file: ", entry, " with size: ", entry.stat().st_size)
-#        test_comments_df = test_comments_df.append(transform_xml_to_dataframe(entry))
+    return local_comments_df
 
 
-toc = time.time()
-print(toc-toc, "sec Elapsed")
+if __name__ == "__main__":
 
-#print(comments_df.iloc[1,7])
+    # directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/comments"
+    directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/art/Comments"
 
-# possibility to save the dataframe as a csv to also manually have a look at it
-comments_df.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
+    tic = time.time()
+    comments_df = wrapper_process_xml(local_directory=directory)
+
+    toc = time.time()
+    print(toc - toc, "sec Elapsed")
+
+    # tested for a specific case where content of a comment is empty
+    # test_comments_df = pd.DataFrame([])
+    # for entry in os.scandir(directory):
+    #    if entry.path.endswith("mment_13619749.xml") and entry.is_file() and entry.stat().st_size>37:
+    #        print("file: ", entry, " with size: ", entry.stat().st_size)
+    #        test_comments_df = test_comments_df.append(transform_xml_to_dataframe(entry))
+
+    # possibility to save the dataframe as a csv to also manually have a look at it
+    # comments_df.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")

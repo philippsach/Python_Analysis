@@ -110,7 +110,6 @@ comments_after_deadline = comments[comments["utcTime"] > comments["utc_deadline"
 def calculate_reply_ratio_test(loc_comments_df):
     # calculate total number of comments that have been made by backers
     # (NOT answers, but original comments)
-    # STILL TBD - what happens if there are 0 comments? what is the reply ratio then?
 
     comments_of_backers = loc_comments_df[
         (loc_comments_df["title"] != "Projektgründer") &

@@ -15,37 +15,31 @@ from nltk.corpus import stopwords
 pd.options.mode.chained_assignment = None
 target_tz = pytz.timezone("UTC")
 
+creator_names = ["Projektgründer", "ProjektgründerSuperbacker"]
 
 
-def get_comments_df():
-    # this function should obtain the data from the MySQL database
-    # and change it into a pandas dataframe format
-    # still to be decided: if this function only downloads for 1 project or the whole thing
-
-    return 1
-
-def calculate_reply_ratio(loc_comments_df, projectID):
+def calculate_reply_ratio(loc_comments_df):
     # calculate total number of comments that have been made by backers
     # (NOT answers, but original comments)
-    # STILL TBD - what happens if there are 0 comments? what is the reply ratio then?
 
     comments_of_backers = loc_comments_df[
-        (loc_comments_df["title"] != "Projektgründer") &
-        (loc_comments_df["answerID"].isna()) &
-        (loc_comments_df["projectID"] == projectID)
+        (loc_comments_df["title"].isin(creator_names) == False) &
+        (loc_comments_df["answerID"].isna())
     ]
     n_comments_of_backers = len(comments_of_backers.index)
 
     # calculate number of comments where the projedt initiator has replied at least once
     answers_of_creator = loc_comments_df[
-        (loc_comments_df["title"] == "Projektgründer") &
-        (loc_comments_df["projectID"] == projectID) &
+        (loc_comments_df["title"].isin(creator_names) == False) &
         (loc_comments_df["answerID"].notnull())
     ]
     n_comments_answered_by_creator = answers_of_creator["commentID"].nunique()
 
     # calculate reply ratio
-    reply_ratio = n_comments_answered_by_creator / n_comments_of_backers
+    try:
+        reply_ratio = n_comments_answered_by_creator / n_comments_of_backers
+    except ZeroDivisionError:
+        reply_ratio = float("NaN")
 
     return reply_ratio
 
@@ -187,3 +181,9 @@ if __name__ == '__main__':
         loc_comments_df=comments_df,
         projectID="pixeloccult"
     ))
+
+    comments_df = pd.read_csv(
+        "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
+    comments_df["utcTime"] = pd.to_datetime(comments_df["utcTime"])
+
+    test = comments_df.groupby("projectID").apply(calculate_reply_ratio)
