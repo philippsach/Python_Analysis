@@ -7,36 +7,15 @@ import datetime as dt
 import pytz  # for timezone handling
 import nltk  # for natural language processing
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from nltk.corpus import stopwords
+
+
 # import spacy  # for lemmatization
 
-nltk.download("punkt")  # punkt resource is a pre-trained model that helps to tokenize words and sentences
-nltk.download("stopwords")
-
-# define sentiment intensity analyzer model
-sid = SentimentIntensityAnalyzer()
-
-print("hello 1")
-from nltk.corpus import stopwords
-print("hello 2")
-stop_words = stopwords.words('english')
-print("hello 3")
-
 pd.options.mode.chained_assignment = None
-
 target_tz = pytz.timezone("UTC")
 
-# for testing purposes, create some sample data that can be worked on in here - later delete
-from process_xml_files import transform_xml_to_dataframe
-directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/comments"
-comments_df = pd.DataFrame([])
 
-for entry in os.scandir(directory):
-    # files with 37 byte size do not contain comments and are directly skipped
-    if entry.path.endswith(".xml") and entry.is_file() and entry.stat().st_size>37:
-        print(entry.stat().st_size)
-        comments_df = comments_df.append(transform_xml_to_dataframe(entry))
-
-print(comments_df)
 
 def get_comments_df():
     # this function should obtain the data from the MySQL database
@@ -149,33 +128,62 @@ def calculate_comment_sentiment(loc_comments_df, projectID):
     return average_backer_sentiment, average_creator_sentiment
 
 
-# test function
-print(calculate_reply_ratio(
+if __name__ == '__main__':
+
+    from process_xml_files import transform_xml_to_dataframe
+
+    nltk.download("punkt")  # punkt resource is a pre-trained model that helps to tokenize words and sentences
+    nltk.download("stopwords")
+
+    # define sentiment intensity analyzer model
+    sid = SentimentIntensityAnalyzer()
+
+    print("hello 1")
+
+    print("hello 2")
+    stop_words = stopwords.words('english')
+    print("hello 3")
+
+    # for testing purposes, create some sample data that can be worked on in here - later delete
+
+    directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/comments"
+    comments_df = pd.DataFrame([])
+
+    for entry in os.scandir(directory):
+        # files with 37 byte size do not contain comments and are directly skipped
+        if entry.path.endswith(".xml") and entry.is_file() and entry.stat().st_size > 37:
+            print(entry.stat().st_size)
+            comments_df = comments_df.append(transform_xml_to_dataframe(entry))
+
+    print(comments_df)
+
+    # test function
+    print(calculate_reply_ratio(
+            loc_comments_df=comments_df,
+            projectID="pixeloccult"
+    ))
+
+
+    # test function
+    print(calculate_reply_speed(
         loc_comments_df=comments_df,
         projectID="pixeloccult"
-))
+    ))
 
+    # test function
+    print(calculate_reply_length(
+         loc_comments_df=comments_df,
+         projectID="pixeloccult"
+     ))
 
-# test function
-print(calculate_reply_speed(
-    loc_comments_df=comments_df,
-    projectID="pixeloccult"
-))
+    # test function
+    print(calculate_comment_length(
+        loc_comments_df=comments_df,
+        projectID="pixeloccult"
+    ))
 
-# test function
-print(calculate_reply_length(
-     loc_comments_df=comments_df,
-     projectID="pixeloccult"
- ))
-
-# test function
-print(calculate_comment_length(
-    loc_comments_df=comments_df,
-    projectID="pixeloccult"
-))
-
-# test function
-print(calculate_comment_sentiment(
-    loc_comments_df=comments_df,
-    projectID="pixeloccult"
-))
+    # test function
+    print(calculate_comment_sentiment(
+        loc_comments_df=comments_df,
+        projectID="pixeloccult"
+    ))

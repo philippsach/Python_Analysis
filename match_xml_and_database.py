@@ -13,11 +13,14 @@
 # 4. match the comments from our local xml files to the
 
 import pandas as pd
+import numpy as np
 import time
 import os, os.path
 from sqlalchemy import create_engine
 import pytz
 import datetime as dt
+
+# from calculate_comment_statistics import calculate_reply_ratio
 
 parent_directory = "/Users/philippsach/HiDrive/public/Kickstarter_Data"
 
@@ -39,8 +42,8 @@ category_df["path"] = category_df.apply(
 
 category_df["query"] = category_df.apply(
     lambda x: "SELECT Project_Nr, Deadline, end_year, end_month, end_day, end_time, comments, withdrawn_comments\
-    FROM combined_metadata WHERE (state = 'erfolgreich' OR state = 'Failed') AND category='" +
-    x["category"] + "' LIMIT 10", axis=1)
+    FROM combined_metadata WHERE (state = 'Successful' OR state = 'FAILED') AND category='" +
+    x["category"] + "'", axis=1)
 
 test_query = "SELECT Project_Nr, Deadline, end_year, end_month, end_day, end_time, comments, withdrawn_comments,\
  state FROM combined_metadata WHERE (Project_Nr = '1000245024' OR Project_Nr = '10006131')"
@@ -48,8 +51,9 @@ test_query = "SELECT Project_Nr, Deadline, end_year, end_month, end_day, end_tim
 # test_query uses one successful and one unsuccessful project
 # have different patterns of how the date is stored
 
-# category = category_df.iloc[0, 0]
-# query = category_df.iloc[0, 2]
+category = category_df.iloc[0, 0]
+path = category_df.iloc[0, 1]
+query = category_df.iloc[0, 2]
 # print(category_df.iloc[0, 2])
 
 def isfloat(value):
@@ -75,18 +79,57 @@ def try_parsing_date(deadline, end_year, end_month, end_day, end_time):
     return parsed_datetime
 
 
-metadata = pd.read_sql(test_query, con=sqlEngine)
-# print(metadata)
+project_metadata = pd.read_sql(query, con=sqlEngine)
+comments_df = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
+comments_df["utcTime"] = pd.to_datetime(comments_df["utcTime"])
 
-
-for row in metadata.itertuples(index=True, name="Project"):
+for row in project_metadata.itertuples(index=True, name="Project"):
     parsed_utc = try_parsing_date(
         deadline=row.Deadline,
         end_year=row.end_year,
         end_month=row.end_month,
         end_day=row.end_day,
         end_time=row.end_time)
-    metadata.at[row.Index, "utcTime"] = parsed_utc
+    project_metadata.at[row.Index, "utc_deadline"] = parsed_utc
+
+project_metadata_to_merge = project_metadata[["Project_Nr", "utc_deadline"]].copy()
+
+comments = comments_df.merge(project_metadata_to_merge,
+                           left_on="projectID",
+                           right_on="Project_Nr",
+                           how="left")
+
+print(comments.head())
+
+comments["comment_before_deadline"] = np.where(comments["utcTime"] <= comments["utc_deadline"], True, False)
+comments_before_deadline = comments[comments["utcTime"] <= comments["utc_deadline"]]
+comments_after_deadline = comments[comments["utcTime"] > comments["utc_deadline"]]
 
 
-print(metadata)
+
+def calculate_reply_ratio_test(loc_comments_df):
+    # calculate total number of comments that have been made by backers
+    # (NOT answers, but original comments)
+    # STILL TBD - what happens if there are 0 comments? what is the reply ratio then?
+
+    comments_of_backers = loc_comments_df[
+        (loc_comments_df["title"] != "Projektgründer") &
+        (loc_comments_df["answerID"].isna())
+    ]
+    n_comments_of_backers = len(comments_of_backers.index)
+
+    # calculate number of comments where the projedt initiator has replied at least once
+    answers_of_creator = loc_comments_df[
+        (loc_comments_df["title"] == "Projektgründer") &
+        (loc_comments_df["answerID"].notnull())
+    ]
+    n_comments_answered_by_creator = answers_of_creator["commentID"].nunique()
+
+    # calculate reply ratio
+    reply_ratio = n_comments_answered_by_creator / n_comments_of_backers
+
+    return reply_ratio
+
+
+test = comments_before_deadline.groupby("projectID").apply(calculate_reply_ratio_test)
+print(test.head())
