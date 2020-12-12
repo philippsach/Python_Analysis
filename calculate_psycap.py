@@ -8,9 +8,9 @@ misspelling_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysi
 df_misspellings = pd.read_csv(misspelling_path)
 list_misspellings = df_misspellings["Misspelling"].to_list()
 
-# import comments_df and filter to those comments that should be analysed - here: the comments of the creator
-comments_df = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/comments_df.csv",sep=";")
-psycap_comments_df = comments_df[comments_df["title"] == "Projektgründer"].copy()
+# TODO: Define creator names in user settings and not in each script separately (is done here and in calc_comm_stats)
+creator_names = ["Projektgründer", "ProjektgründerSuperbacker"]
+# creator_names = ["Creator", "CreatorSuperbacker"]
 
 
 # definition of the word lists
@@ -144,6 +144,11 @@ search_misspellings = r"(?i)(?<!\S)({})(?!\S)".format(string_misspellings)
 
 # define a function that counts the occurence of that
 def count_words_in_list(loc_comments_df):
+    
+    # rule out that there is no empty content that cannot be handled
+    loc_comments_df["content"] = loc_comments_df["content"].astype("string")
+    loc_comments_df["content"] = loc_comments_df["content"].fillna("")
+        
 
     loc_comments_df["count_organizational_optimism"] = loc_comments_df.content.str.count(search_organizational_optimism)
     loc_comments_df["count_organizational_hope"] = loc_comments_df.content.str.count(search_organizational_hope)
@@ -159,29 +164,57 @@ def count_words_in_list(loc_comments_df):
         loc_comments_df["count_organizational_confidence"]
     )
     
+
     loc_comments_df["commentLength"] = loc_comments_df.apply(lambda x: len(x["content"].split()), axis=1)
 
     return loc_comments_df
 
 
-psycap_comments_df = count_words_in_list(loc_comments_df=psycap_comments_df)
+def wrapper_wordcount(loc_comments_df):
+    psycap_comments_df = loc_comments_df.copy()
+    psycap_comments_df = psycap_comments_df[psycap_comments_df["title"].isin(creator_names)]
+    psycap_comments_df = count_words_in_list(loc_comments_df=loc_comments_df)
+    psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
+    
+    psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism": "commentLength"]
+    psycap_comments_df["shareOptimism"] = psycap_comments_df["count_organizational_optimism"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["shareHope"] = psycap_comments_df["count_organizational_hope"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["shareResilience"] = psycap_comments_df["count_organizational_resilience"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["shareConfidence"] = psycap_comments_df["count_organizational_confidence"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["sharePsyCap"] = psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
+    psycap_comments_df["shareMisspellings"] = psycap_comments_df["count_misspellings"] / psycap_comments_df[
+        "commentLength"]
 
-psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
-psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism" : "commentLength"]
-psycap_comments_df["shareOptimism"] =    psycap_comments_df["count_organizational_optimism"] / psycap_comments_df["commentLength"]
-psycap_comments_df["shareHope"] =        psycap_comments_df["count_organizational_hope"] / psycap_comments_df["commentLength"]
-psycap_comments_df["shareResilience"] =  psycap_comments_df["count_organizational_resilience"] / psycap_comments_df["commentLength"]
-psycap_comments_df["shareConfidence"] =  psycap_comments_df["count_organizational_confidence"] / psycap_comments_df["commentLength"]
-psycap_comments_df["sharePsyCap"] =      psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
-psycap_comments_df["shareMisspellings"]  = psycap_comments_df["count_misspellings"] / psycap_comments_df["commentLength"]
+    return psycap_comments_df
 
 
+if __name__ == "__main__":
+    # import comments_df and filter to those comments that should be analysed - here: the comments of the creator
+    comments_df = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
+    psycap_comments_df = comments_df[comments_df["title"].isin(creator_names)].copy()
 
+    psycap_comments_df = count_words_in_list(loc_comments_df=psycap_comments_df)
+    
 
-
-
-
-
+    psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
+    psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism": "commentLength"]
+    psycap_comments_df["shareOptimism"] = psycap_comments_df["count_organizational_optimism"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["shareHope"] = psycap_comments_df["count_organizational_hope"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["shareResilience"] = psycap_comments_df["count_organizational_resilience"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["shareConfidence"] = psycap_comments_df["count_organizational_confidence"] / psycap_comments_df[
+        "commentLength"]
+    psycap_comments_df["sharePsyCap"] = psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
+    psycap_comments_df["shareMisspellings"] = psycap_comments_df["count_misspellings"] / psycap_comments_df[
+        "commentLength"]
+    
+    psycap_statistics = wrapper_wordcount(comments_df)
 
 
 
