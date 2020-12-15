@@ -35,8 +35,8 @@ category_df["path"] = category_df.apply(
     "/Comments", 
     axis = 1)
 
-category = category_df.iloc[4,0]
-save_path = category_df.iloc[4,1]
+category = category_df.iloc[9,0]
+save_path = category_df.iloc[9,1]
 
 if os.path.isdir("Python_Analysis"):  # then  we are on the windows laptop
     overview_base_path = "Python_Analysis"
@@ -351,7 +351,7 @@ wrapper_function(path=save_path)
 
 
 overview_file.to_csv(overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv", index=False)
-
+print("finished successfully and saved to file")
 # testing the new setup <3
 # if __name__ == "__main__":
 #     num_processes = mp.cpu_count()

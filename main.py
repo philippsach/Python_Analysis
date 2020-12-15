@@ -77,6 +77,7 @@ if __name__ == '__main__':
 
     # section 3) TODO: I have to do more cleaning in the content part (like deleting special characters like #,
     #  or also emojis?, ... )
+    # links etc. - Daniel hat ein Skript dafür - hat das auch für Paper 2 benutzt :)
 
 
     # FILTER TO OBTAIN RELEVANT DATAFRAMES -
@@ -107,7 +108,16 @@ if __name__ == '__main__':
     psycap_statistics = calculate_psycap.wrapper_wordcount(comments_before_deadline)
 
     # section 4) merge all comment statistics into one dataframe
-
+    comment_statistics_df = pd.concat([reply_ratio.rename("reply_ratio"), 
+                                       reply_speed.rename("reply_speed"),
+                                       reply_length.rename("reply_length"),
+                                       comment_length.rename("comment_length"),
+                                       comment_sentiment.rename("comment_sentiment")], 
+                                      axis=1)
+    
+    comment_statistics_df = comment_statistics_df.merge(psycap_statistics,
+                                                        left_index=True,
+                                                        right_index=True)
 
     # TOPIC MODELING -----------------------
     # section 1) clean, lemmatize, etc. of data
