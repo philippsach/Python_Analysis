@@ -12,6 +12,7 @@ from datetime import datetime
 import multiprocessing as mp
 import os
 import urllib3
+import lxml.etree as et
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

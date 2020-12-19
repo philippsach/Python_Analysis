@@ -15,38 +15,10 @@ import os
 import urllib3
 from urllib.request import urlopen as uReq
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+#urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def crawl_updates(soup):
-
-
-    # options = webdriver.ChromeOptions()
-    # options.add_argument("headless")
-    # driver = webdriver.Chrome(executable_path="/Users/philippsach/.conda/envs/Python_Analysis/bin/chromedriver",
-    #                           options=options)
-    # driver.set_window_position(2000, 0)
-    # driver.delete_all_cookies()
-    # driver.get(new_link)
-    # driver.switch_to.default_content()
-
-    update = soup.find("a", {"data-content": "updates",
-                             "id": "updates-emoji"})
-
-    print("soup.title: ", soup.title)
-    print("soup.title.text: ", soup.title.text)
-
-
-    print("update: ", update)
-
-    if update:
-        update_count = update.find("span", {"class": "count"}).text
-        print("update count is: ", update_count)
-
-    return update_count
-
-
-def get_all_input(link):
+def get_all_input(link, path, pr_nr):
     try:
         print("=============================================================")
         print("Time: " + str(datetime.now()))
@@ -76,30 +48,16 @@ def get_all_input(link):
             except StaleElementReferenceException:
                 break
         
-        # //*[@id="project-post-interface"]/div/div[11]/div/div/div/button
         
-        # //*[@id="project-post-interface"]/div/div[1]/div/div/a/div/article/footer/div/button/div
-        # #project-post-interface > div > div:nth-child(1) > div > div > a
-        # #project-post-interface > div > div:nth-child(2) > div > div > a
-        # #project-post-interface > div > div:nth-child(16) > div > div > a
-        # #project-post-interface > div > div:nth-child(1) > div > div > a
-        
-        #project-post-interface > div > div:nth-child(1) > div > div > a > div > article > footer > div > div > span:nth-child(1)
-        #project-post-interface > div > div:nth-child(1) > div > div > a > div > article > footer > div > div > span:nth-child(2)
-            
-        # //*[@id="project-post-interface"]/div/div[1]/div/div/a
-        # //*[@id="project-post-interface"]/div/div[1]/div/div/a/div/article/footer/div/div/span[1]
-        
-        # #project-post-interface > div > div:nth-child(1) > div > div > a
-        
-        # #project-post-interface > div > div:nth-child(1) > div > div > a > div > article > footer > div > button
-        # //*[@id="project-post-interface"]/div/div[1]/div/div/a/div/article/footer/div/button
-        soup = BeautifulSoup(driver.page_source, "lxml")
+        #soup = BeautifulSoup(driver.page_source, "lxml")
         
         children = driver.find_elements_by_css_selector('#project-post-interface > div > div > div >div > a[href]')
-        children = driver.find_elements_by_css_selector('#project-post-interface > div > div')
-        
-        for child in children:
+
+        update_list = []
+                
+        for idx, child in enumerate(children):
+            
+            print("now crawling children: ", idx, " of project: ", pr_nr)
             
             comment_count = child.find_element_by_xpath('.//div/article/footer/div/div/span[1]').text
             like_count = child.find_element_by_xpath('.//div/article/footer/div/div/span[2]').text
@@ -108,37 +66,82 @@ def get_all_input(link):
             
             # open up the specific sub-update in a new tab            
             driver.execute_script("window.open('{}');".format(detail_link))
-            './/div/article/footer/div/button'
             
-        ### this was the try with response and requests
+            driver.switch_to.window(driver.window_handles[1])
+            
+            # need to wait until header is found, while switching and loading new page could not find
+            header = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, 
+                     '#project-post-interface > div > div > div > article > header'
+                     )
+                    )
+                )
+            #header = driver.find_element_by_css_selector('#project-post-interface > div > div > div > article > header')
+            
+            update_id = header.find_element_by_xpath('.//div[1]/div/span').text
+            update_title = header.find_element_by_class_name('mb3').text
+            
+            personal_info = header.find_element_by_xpath('.//div[2]/div[2]/div')
+            raw_name = personal_info.text
+            title_name = personal_info.find_element_by_xpath('.//span').text
+            name = raw_name.replace(title_name, '')
+                        
+            time = header.find_element_by_xpath('div[2]/div[2]/span').text
+                        
+            # iframe = driver.find_element_by_class_name("rte__content")
+            
+            iframe = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CLASS_NAME, 'rte__content')
+                    )
+                )
+            
+            update_text = iframe.text
+            
+            pics = iframe.find_elements_by_tag_name("img")
+            vids = iframe.find_elements_by_tag_name("vid")
+            video_count = len(vids)
+            gif_counter = 0
+            pic_counter = 0
+            for pic in pics:
+                if ".gif" in str(pic):
+                    gif_counter +=1
+                else:
+                    pic_counter +=1
+            
+            sleep(5)
+            
+            new_dict = {'ID': update_id,
+                        'Name': name,
+                        'AuthorTitle': title_name,
+                        'Time': time,
+                        'LikesCount': like_count,
+                        'CommentCount': comment_count,
+                        'UpdateTitle': update_title,
+                        'PictureCount': pic_counter,
+                        'GifCount': gif_counter,
+                        'VideoCount': video_count,
+                        'Content': update_text}
+            
+            update_list.append(new_dict)
+            
+            driver.close()
+            driver.switch_to.window(driver.window_handles[0])
+                
         
-        #response = requests.get(new_link)
+        my_item_func = lambda x: 'update'
         
+        test_xml = dicttoxml(update_list, 
+                             custom_root="updates", 
+                             attr_type=False,
+                             item_func=my_item_func)
+        dom = parseString(test_xml)        
         
-        #print("response status code is: ", response.status_code)
-
-        # if response.status_code == 200:
-        #     print(response.status_code)
-        #     soup = BeautifulSoup(response.text, "lxml")
-        # else:
-        #     # print("CONNECTION ERROR: " + str(response.status_code))
-        #     if response.status_code == 429:
-        #         print("TIMEOUT, OVERLOAD")
-        #         sleep(60)
-        #         print("Retry last link")
-        #         response = requests.get(new_link, verify=False)
-        #         # print(response.status_code)
-        #         if response.status_code != 200:
-        #             print("SOMETHING WENT WRONG --> Wait another interval")
-        #             sleep(60)
-        #             response = requests.get(new_link, verify=False)
-        #             print(requests.status_code)
-        #         soup = BeautifulSoup(response.text, "lxml")
-        #     else:
-        #         print("UNKNOWN ERROR - DO SOMETHING")
-        #         print("<--------------------->")
-        #         return
+        #test_pretty_xml = dom.toprettyxml()                
         
+        with open(path + "/" + "update_" + pr_nr + ".xml", mode="w", encoding="utf-8") as f:
+                f.write(dom.toprettyxml())
         
 
     except Exception as e:
@@ -146,9 +149,11 @@ def get_all_input(link):
         print(e)
         return
 
-    updates_count = crawl_updates(soup)
 
     return
 
+save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/art/Updates"
 
-get_all_input(link="https://www.kickstarter.com/projects/1039804339/ben-newmans-matador")
+get_all_input(link="https://www.kickstarter.com/projects/1039804339/ben-newmans-matador",
+              path = save_path,
+              pr_nr = "1039804339")
