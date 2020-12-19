@@ -55,6 +55,45 @@ def calc_utc_time_from_string(str_datetime):
     return utc_datetime
 
 
+def transform_updates_xml_to_dataframe(entry):
+    # print("update entry path that is being transformed: ", entry.path)
+    tree = ET.parse(entry.path)
+    root = tree.getroot()
+    project_id = re.search(pattern="update_(.*?).xml", string=entry.name).group(1)
+
+    df_cols = ["projectID", "updateID", "name", "author_title", "time", "like_count",
+               "comment_count", "update_title", "picture_count", "gif_count",
+               "video_count", "content"]
+
+    rows = []
+
+    for node in root:
+        u_id = node.find("ID").text
+        u_name = node.find("Name").text
+        u_author_title = node.find("AuthorTitle").text
+        u_time = node.find("Time").text
+        u_like_count = node.find("LikesCount").text
+        u_comment_count = node.find("CommentCount").text
+        u_update_title = node.find("UpdateTitle").text
+        u_picture_count = node.find("PictureCount").text
+        u_gif_count = node.find("GifCount").text
+        u_video_count = node.find("VideoCount").text
+        u_content = node.find("Content").text
+
+        rows.append({"projectID": project_id, "updateID": u_id, "name": u_name, "author_title": u_author_title,
+                     "time": u_time, "like_count": u_like_count, "comment_count": u_comment_count,
+                     "update_title": u_update_title, "picture_count": u_picture_count, "gif_count": u_gif_count,
+                     "video_count": u_video_count, "content": u_content})
+
+    out_df = pd.DataFrame(rows, columns=df_cols)
+
+    # HERE: INSERT CHANGING OF DATATYPES AND PARSING FOR EXAMPLE THE DATE OF THE UPDATE
+    # from string: "July 18, 2017" to date object: 2018-07-18 or so
+    #
+
+    return out_df
+
+
 def transform_xml_to_dataframe(entry):
     tree = ET.parse(entry.path)
     root = tree.getroot()
@@ -132,23 +171,28 @@ def wrapper_process_xml(local_directory):
     return local_comments_df
 
 
+def wrapper_process_updates_xml(local_directory):
+    local_updates_df = pd.DataFrame([])
+
+    for entry in os.scandir(local_directory):
+        if entry.path.endswith(".xml") and entry.is_file():
+            print("file: ", entry, " with size: ", entry.stat().st_size)
+            local_updates_df = local_updates_df.append(transform_updates_xml_to_dataframe(entry))
+
+    return local_updates_df
+
+
 if __name__ == "__main__":
 
-    # directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/art/comments"
     directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/art/Comments"
 
-    tic = time.time()
-    comments_df = wrapper_process_xml(local_directory=directory)
+    update_directory = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/art/Updates"
+    updates_df = wrapper_process_updates_xml(local_directory=update_directory)
+    print(updates_df.head())
 
-    toc = time.time()
-    print(toc - toc, "sec Elapsed")
+    ### this is needed for parsing comments
 
-    # tested for a specific case where content of a comment is empty
-    # test_comments_df = pd.DataFrame([])
-    # for entry in os.scandir(directory):
-    #    if entry.path.endswith("mment_13619749.xml") and entry.is_file() and entry.stat().st_size>37:
-    #        print("file: ", entry, " with size: ", entry.stat().st_size)
-    #        test_comments_df = test_comments_df.append(transform_xml_to_dataframe(entry))
-
-    # possibility to save the dataframe as a csv to also manually have a look at it
-    # comments_df.to_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
+    # tic = time.time()
+    # comments_df = wrapper_process_xml(local_directory=directory)
+    # toc = time.time()
+    # print(toc - toc, "sec Elapsed")

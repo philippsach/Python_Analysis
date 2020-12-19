@@ -44,7 +44,7 @@ if os.path.isdir("Python_Analysis"):  # then  we are on the windows laptop
 else:
     overview_base_path = ""
 
-overview_path = overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv"
+overview_path = overview_base_path + "../data/overview_files/current_" + category + "_metadata.csv"
 overview_file = pd.read_csv(overview_path)
 overview_file["error_description"] = overview_file["error_description"].astype("string")
 overview_file = overview_file.sort_values(by="comments")
