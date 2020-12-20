@@ -351,7 +351,7 @@ wrapper_function(path=save_path)
 
 
 
-overview_file.to_csv(overview_base_path + "./data/overview_files/current_" + category + "_metadata.csv", index=False)
+overview_file.to_csv(overview_base_path + "../data/overview_files/current_" + category + "_metadata.csv", index=False)
 print("finished successfully and saved to file")
 # testing the new setup <3
 # if __name__ == "__main__":

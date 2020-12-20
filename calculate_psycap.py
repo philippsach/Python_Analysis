@@ -118,6 +118,40 @@ list_organizational_confidence = ["ability", "accomplish", "accomplished", "acco
                                   "undoubtedly", "undoubting", "unflappability", "unflappable", "unflinching",
                                   "unflinchingly", "unhesitating", "unhesitatingly", "unwavering", "unwaveringly"]
 
+list_prosocial_language = ["activism", "activist", "activistic", "altruism", "altruist", "altruistic",
+                           "altruistically", "aware", "awareness", "charity", "civic", "civil",
+                           "civility", "civilly", "co-op", "co-operate", "co-operation", "co-operative",
+                           "co-operatively", "co-operativeness", "co-operativity", "co-operator", "collective",
+                           "collectively", "collectiveness", "collectivise", "collectivism", "collectivist",
+                           "collectivistic", "collectivity", "collectivize", "communal", "community", "compassion",
+                           "compassionate", "compassionately", "cooperate", "cooperation", "cooperative",
+                           "cooperatively", "cooperativeness", "cooperativity", "cooperator", "donate",
+                           "donation", "donator", "egalitarian", "egalitarianism", "empathetic", "empathic",
+                           "empathically", "empathise", "empathize", "empathy", "empower", "empowerment",
+                           "equal", "equality", "equally", "ethic", "ethicist", "fair", "fair-minded",
+                           "fair-mindedness", "fair-trade", "fairing", "fairly", "fairmind", "fairness",
+                           "fairtrade", "freedom", "generosity", "generous", "generously", "generousness",
+                           "grass-root", "grass root", "grassroot", "health", "healthful", "healthfully",
+                           "healthfulness", "healthily", "healthiness", "healthy", "humane", "humanely",
+                           "humaneness", "humanitarian", "humanitarianism", "humanity", "humanly",
+                           "humanness", "ideal", "idealism", "idealist", "idealistic", "idealistically",
+                           "integrity", "justice", "justly", "justness", "liberate", "liberty",
+                           "local", "localism", "localist", "localistic", "locality", "locally",
+                           "localness", "moral", "moralism", "moralist", "moralistic", "moralistically",
+                           "morality", "morally", "mutual", "mutuality", "mutually", "mutualness", "no gain",
+                           "non commercial", "non for profit", "non profit", "non-commercial", "non-commercially",
+                           "non-for-profit", "non-profit", "non-profit-making", "noncommercial", "noncommercially",
+                           "nonprofit", "not commercial", "not for profit", "not gain", "not-for-profit",
+                           "not-profit-making", "open source", "open-source", "peace", "peaceful", "peacefully",
+                           "peacefulness", "philanthropic", "philanthropically", "philanthropist", "philanthropy",
+                           "pro social", "pro-social", "pro-socially", "prosocial", "prosociality", "prosocially",
+                           "prosocialness", "pro-sociality", "pro-socially", "pro-socialness", "public",
+                           "assistance", "responsable", "responsibility", "responsible", "responsibleness",
+                           "responsibly", "rights", "selfless", "selflessly", "selflessness", "social benefit",
+                           "social change", "societal change", "solidarity", "solidary", "unselfish", "unselfishly",
+                           "unselfishness", "value drive", "value orientation", "value system", "value-driven",
+                           "value-orientation", "value-system", "voluntary", "volunteer", "volunteerism",
+                           "welfare", "well-being", "wellbeing"]
 
 # obtain search patterns for regex expressions
 # (?i) to ignore case of letters
@@ -137,6 +171,9 @@ search_organizational_confidence = r"(?i)(?<!\S)({})(?!\S)".format(string_organi
 
 string_misspellings = "|".join(list_misspellings)
 search_misspellings = r"(?i)(?<!\S)({})(?!\S)".format(string_misspellings)
+
+string_prosocial_language = "|".join(list_prosocial_language)
+search_prosocial_language = r"(?i)(?<!\S)({})(?!\S)".format(string_prosocial_language)
 
 #print(string_organizational_optimism)
 #print(search_organizational_optimism)
@@ -163,6 +200,8 @@ def count_words_in_list(loc_comments_df):
         loc_comments_df["count_organizational_resilience"] +
         loc_comments_df["count_organizational_confidence"]
     )
+
+    loc_comments_df["count_prosocial"] = loc_comments_df.content.str.count(search_prosocial_language)
     
 
     loc_comments_df["commentLength"] = loc_comments_df.apply(lambda x: len(x["content"].split()), axis=1)
@@ -188,6 +227,8 @@ def wrapper_wordcount(loc_comments_df):
     psycap_comments_df["sharePsyCap"] = psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
     psycap_comments_df["shareMisspellings"] = psycap_comments_df["count_misspellings"] / psycap_comments_df[
         "commentLength"]
+
+    psycap_comments_df["shareProsocial"] = psycap_comments_df["count_prosocial"] / psycap_comments_df["commentLength"]
 
     return psycap_comments_df
 

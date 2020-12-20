@@ -75,10 +75,16 @@ if __name__ == '__main__':
     print("unique titles after replacement: ", comments_df["title"].unique())
     comments_df["utcTime"] = pd.to_datetime(comments_df["utcTime"])
 
-    # section 3) TODO: I have to do more cleaning in the content part (like deleting special characters like #,
-    #  or also emojis?, ... )
-    # links etc. - Daniel hat ein Skript dafür - hat das auch für Paper 2 benutzt :)
+    # section 3) cleaning of the content part
+    comments_df["content"] = comments_df["content"].str.replace("\S*@\S*\s?", "", regex=True)  # email-addresses
+    comments_df["content"] = comments_df["content"].str.replace("\s+", "",regex=True)  # new line characters
+    comments_df["content"] = comments_df["content"].str.replace("\'", "", regex=True)  # distracting single quotes
+    comments_df["content"] = comments_df["content"].str.replace(
+        r"(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)"
+        , "", regex=True)  # urls
 
+    # TODO: think if I have to replace also emojis etc. or not (could also say this could be used by sentiment analyzer)
+    # like ":)" is positive while ":(" is negative etc.
 
     # FILTER TO OBTAIN RELEVANT DATAFRAMES -
     # section 1) differentiate comments before and after deadline
