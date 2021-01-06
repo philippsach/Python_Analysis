@@ -4,6 +4,9 @@ import pandas as pd
 import re
 import math
 
+# user setting whether all categories should be compared - when True only compares technology
+bol_technology_mac_comparison = True
+
 parent_directory = "/Users/philippsach/HiDrive/public/Kickstarter_Data"
 save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/overview_files/"
 
@@ -48,35 +51,42 @@ def needRescraping(dataframe):
 
     return bol_rescraping
     
+if __name__ == "__main__":
 
-for row in category_df.itertuples(index=True, name="cat"):
-        print(row.category)
-        
-        metadata = pd.read_sql(row.query, con=sqlEngine)
-        metadata = metadata.sort_values(by="comments", ascending=False)
-        
-        xml_list = os.listdir(row.path)
-        xml_df = pd.DataFrame(xml_list, columns=["filename"])
-        
-        os.chdir(row.path)
-        
-        xml_df["filesize"] = xml_df["filename"].apply(getSize)
-        xml_df["Project_Nr"] = xml_df["filename"].apply(
-            lambda x: re.search(pattern="comment_(.*?).xml", string=x).group(1))
-        
-        metadata = metadata.merge(xml_df, on="Project_Nr", how="left")
-        metadata["bolScrapeAgain"] = metadata.apply(needRescraping, axis=1)
-        
-        # filter only to projects that still need to be scraped
-        metadata = metadata[metadata["bolScrapeAgain"]]
-        
-        # add columns that are filled later with information from success status from crawling comments
-        metadata["downloaded"] = False
-        metadata["error_description"] = ""
-        metadata["withdrawn_comments_new"] = ""
-        
-        # calculate path where file should be saved
-        where_to_save = save_path + row.category + "_metadata.csv"
-        
-        # save file
-        metadata.to_csv(where_to_save, index=False)
+    # only do complete one if needed:
+    if bol_technology_mac_comparison:
+        category_df = category_df[category_df["category"] == "technology"]
+
+    for row in category_df.itertuples(index=True, name="cat"):
+            print(row.category)
+
+            metadata = pd.read_sql(row.query, con=sqlEngine)
+            metadata = metadata.sort_values(by="comments", ascending=False)
+
+            xml_list = os.listdir(row.path)
+            xml_df = pd.DataFrame(xml_list, columns=["filename"])
+
+            os.chdir(row.path)
+
+            xml_df["filesize"] = xml_df["filename"].apply(getSize)
+            xml_df["Project_Nr"] = xml_df["filename"].apply(
+                lambda x: re.search(pattern="comment_(.*?).xml", string=x).group(1))
+
+            metadata = metadata.merge(xml_df, on="Project_Nr", how="left")
+            metadata["bolScrapeAgain"] = metadata.apply(needRescraping, axis=1)
+
+            # filter only to projects that still need to be scraped
+            metadata = metadata[metadata["bolScrapeAgain"]]
+
+            # add columns that are filled later with information from success status from crawling comments
+            metadata["downloaded"] = False
+            metadata["error_description"] = ""
+            metadata["withdrawn_comments_new"] = ""
+
+            # calculate path where file should be saved
+            where_to_save = save_path + row.category + "_metadata.csv"
+
+            # save file
+            metadata.to_csv(where_to_save, index=False)
+
+

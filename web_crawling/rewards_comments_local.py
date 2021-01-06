@@ -36,8 +36,8 @@ category_df["path"] = category_df.apply(
     "/Comments", 
     axis = 1)
 
-category = category_df.iloc[9,0]
-save_path = category_df.iloc[9,1]
+category = category_df.iloc[13,0]
+save_path = category_df.iloc[13,1]
 
 if os.path.isdir("Python_Analysis"):  # then  we are on the windows laptop
     overview_base_path = "Python_Analysis"
