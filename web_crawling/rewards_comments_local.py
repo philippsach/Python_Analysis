@@ -1,8 +1,10 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from fake_useragent import UserAgent
 import pandas as pd
 import requests
 from time import sleep
@@ -16,18 +18,6 @@ import lxml.etree as et
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-headers = {
-    'authority': 'scrapeme.live',
-    'dnt': '1',
-    'upgrade-insecure-requests': '1',
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36',
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-    'sec-fetch-site': 'none',
-    'sec-fetch-mode': 'navigate',
-    'sec-fetch-user': '?1',
-    'sec-fetch-dest': 'document',
-    'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-}
 
 mp.set_start_method('spawn', force=True)
 __spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)"
@@ -49,8 +39,8 @@ category_df["path"] = category_df.apply(
     "/Comments", 
     axis = 1)
 
-category = category_df.iloc[13,0]
-save_path = category_df.iloc[13,1]
+category = category_df.iloc[12,0]
+save_path = category_df.iloc[12,1]
 
 if os.path.isdir("Python_Analysis"):  # then  we are on the windows laptop
     overview_base_path = "Python_Analysis"
@@ -64,11 +54,14 @@ overview_file = overview_file.sort_values(by="comments")
 
 # only process projects with less than 1500 comments in a parallelized manner
 # the rest needs to be taken care of separately
-overview_file = overview_file[overview_file["comments"]<=1500]
+# overview_file = overview_file[overview_file["comments"]<=1500]
 
 # print(overview_file.dtypes)
 print("juhuu outside")
 
+# TODO: implement the following:
+# Click and hold the button if : "Verify that you are a human"
+# https://stackoverflow.com/questions/8787830/click-and-hold-with-webdriver
 
 def crawl_comments(link, pr_nr, path, n_comments_sql):
     print("Now crawling comments")
@@ -76,8 +69,14 @@ def crawl_comments(link, pr_nr, path, n_comments_sql):
     new_link = new_l + "/comments"
     
     options = webdriver.ChromeOptions()
-    options.add_argument("headless")
-    options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
+    # options.add_argument("headless")
+    ua = UserAgent()
+    userAgent = ua.random
+    print("following user agent is used: ", userAgent)
+    options.add_argument(f"user-agent={userAgent}")
+    #options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
+    #options.add_argument("plugins=1")
+    #options.add_argument("languages=en-gb")
     driver = webdriver.Chrome(executable_path="/Users/philippsach/.conda/envs/Python_Analysis/bin/chromedriver",
                               options=options)
     driver.set_window_position(2000, 0)
