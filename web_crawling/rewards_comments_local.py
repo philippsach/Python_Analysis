@@ -4,8 +4,10 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+import pychrome
 from fake_useragent import UserAgent
 import pandas as pd
+import numpy as np
 import requests
 from time import sleep
 from dicttoxml import dicttoxml
@@ -69,26 +71,63 @@ def crawl_comments(link, pr_nr, path, n_comments_sql):
     new_link = new_l + "/comments"
     
     options = webdriver.ChromeOptions()
+    
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+    
+    options.add_argument("--disable-blink-features")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    
+    options.add_argument("window-size=1280,800")
+    
+    # options.add_argument("--incognito")  # better not use incognito... 
+    
     # options.add_argument("headless")
-    ua = UserAgent()
-    userAgent = ua.random
-    print("following user agent is used: ", userAgent)
-    options.add_argument(f"user-agent={userAgent}")
-    #options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
-    #options.add_argument("plugins=1")
-    #options.add_argument("languages=en-gb")
-    driver = webdriver.Chrome(executable_path="/Users/philippsach/.conda/envs/Python_Analysis/bin/chromedriver",
+    
+    # options.add_argument("--remote-debugging-port=8000")  # DEVTOOLS
+    
+    
+    # ua = UserAgent()
+    # userAgent = ua.random
+    # print("following user agent is used: ", userAgent)
+    # options.add_argument(f"user-agent={userAgent}")
+    
+    options.add_argument("Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
+    
+    # options.add_argument("--enable-javascript")
+    # options.add_argument("--no-sandbox")
+    # options.add_argument("plugins=1")
+    # options.add_argument("languages=en-gb")
+    driver = webdriver.Chrome(executable_path="/Users/philippsach/.conda/envs/Python_Analysis/bin/chromedriver_copy",
                               options=options)
-    driver.set_window_position(2000, 0)
+    
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    
+    # DEVTOOLS
+    '''
+    dev_tools = pychrome.Browser(url="http://localhost:8000")  
+    tab = dev_tools.list_tab()[0]  
+    tab.start() 
+    '''
+    
+    # driver.set_window_position(2000, 0)
     driver.delete_all_cookies()
     driver.get(new_link)
     driver.switch_to.default_content()
-
+    
+    # try to catch the case when automatic scraping was detected
+    if driver.find_elements_by_class_name("page-title"):
+        if driver.find_element_by_class_name("page-title").text == "Please verify you are a human":
+            print("mierda, we got blown")
+            sleep(10)  # this time is needed for manual clicking of PRESS AND HOLD
+            input("Press ENTER to continue ... ")
+    
     if n_comments_sql > 20:
         # click the button to load more comments
         while True:
             try:
-                sleep(2)
+                sleepTime = np.random.uniform(1.5,4)
+                sleep(sleepTime)
                 showmore = WebDriverWait(driver, 10).until(EC.presence_of_element_located(
                     (By.XPATH, '//*[@id="react-project-comments"]/div/button')))
                 showmore.click()
@@ -103,7 +142,8 @@ def crawl_comments(link, pr_nr, path, n_comments_sql):
         # click the button to load more replies if there are more than three replies to a comment
         while True:
             try:
-                sleep(2)
+                sleepTime = np.random.uniform(1, 3)
+                sleep(sleepTime)
                 showmoreanswers = WebDriverWait(driver, 10).until(EC.presence_of_element_located(
                     (By.XPATH, '//*[@id="react-project-comments"]/ul/li/div/div/button')))
                 # showmoreanswers.click()
@@ -128,6 +168,8 @@ def crawl_comments(link, pr_nr, path, n_comments_sql):
         if not driver.find_elements_by_id("react-project-comments"):
             print("haven't found react-project-comments")
             error_code = 30
+            sleepTime = np.random.uniform(2,3)  # need to press and hold manually myself during that time
+            sleep(sleepTime)
             withdrawn_count = float("NaN")
             driver.close()
         

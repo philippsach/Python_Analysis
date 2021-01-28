@@ -1,30 +1,84 @@
+#%% import the necessary libraries
 import pymysql
 import pandas as pd
 from sqlalchemy import create_engine
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 
+
+#%% user settings
+status_list = ["Successful", "FAILED"]
+
+# the top 2 categories with the most average comments are chosen
+category_list = ["design", "technology"]  # could think of also using games in the future
+
+random_state = 42
+
+#%% create sql engine and retrieve the data from SQL
 sqlEngine = create_engine("mysql+pymysql://phil_sach:entthesis2020@85.214.204.221/thesis")
 
 query = """
-        SELECT Project_Nr, country_origin, Goal, Pledged, updates, comments, state, category 
+        SELECT category, Project_Nr, state, Goal, Pledged, updates, comments
         FROM combined_metadata
-        WHERE comments > 0
         """
 
-status_list = ["Successful", "FAILED"]
+original_combined_metadata = pd.read_sql(query, con = sqlEngine)
 
 
-combined_metadata = pd.read_sql(query, con = sqlEngine)
+#%% removal of projects we do not want to use
+# only use projects that either are successful or failed, but not cancelled or still ongoing
+original_combined_metadata = original_combined_metadata[original_combined_metadata["state"].isin(status_list)]
 
-print(combined_metadata["Project_Nr"].nunique())
+# add an artifical 1/0 column about state of project for easier statistics
+original_combined_metadata["int_state"] = original_combined_metadata.apply(lambda x: 1 if x["state"] == "Successful" else 0, axis=1)
 
-combined_metadata = combined_metadata[combined_metadata["state"].isin(status_list)]
-combined_metadata["comments"] = combined_metadata["comments"].replace(",", "")
+combined_metadata = original_combined_metadata.copy()
 
-print(combined_metadata[combined_metadata["comments"]] == "1534")
+# only use projects with at least one comment 
+combined_metadata = combined_metadata[combined_metadata["comments"] > 0]
 
-combined_metatdata["comments"] = combined_metadata["comments"].astype("int64")
+# only use projects with at least one update
+combined_metadata = combined_metadata[combined_metadata["updates"] > 0]
+
+
+#%% analysis on the data
+# check how many project numbers are unique 
+print(original_combined_metadata["Project_Nr"].nunique())
+
+original_category_statistics = original_combined_metadata.groupby("category").count().sort_values(by="Project_Nr", ascending=False)
+original_category_statistics_by_state = original_combined_metadata[original_combined_metadata["state"]=="Successful"].groupby(["category", "state"]).count().sort_values(by="Project_Nr", ascending=False)
+
+
+original_comment_statistics = original_combined_metadata["comments"].describe()
+original_comment_statistics_by_category = original_combined_metadata.groupby("category")["comments"].describe().sort_values(by="mean", ascending=False)
+original_comment_statistics_by_category_and_state = original_combined_metadata.groupby(["category", "state"])["comments"].describe().sort_values(by="mean", ascending=False)
+
+original_update_statistics = original_combined_metadata["updates"].describe()
+original_update_statistics_by_category = original_combined_metadata.groupby("category")["updates"].describe().sort_values(by="mean", ascending=False)
+original_update_statistics_by_category_and_state = original_combined_metadata.groupby(["category", "state"])["updates"].describe().sort_values(by="mean", ascending=False)
+
+original_success_statistics = original_combined_metadata["int_state"].mean()
+original_success_statistics_by_category = original_combined_metadata.groupby("category")["int_state"].mean().sort_values(ascending=False)
+# original_test = original_combined_metadata.groupby(["category", "state"]).count()
+
+comment_statistics = combined_metadata["comments"].describe()
+comment_statistics_by_category = combined_metadata.groupby("category")["comments"].describe().sort_values(by="mean", ascending=False)
+comment_statistics_by_category_and_state = combined_metadata.groupby(["category", "state"])["comments"].describe().sort_values(by="mean", ascending=False)
+
+update_statistics = combined_metadata["updates"].describe()
+update_statistics_by_category = combined_metadata.groupby("category")["updates"].describe().sort_values(by="mean", ascending=False)
+update_statistics_by_category_and_state = combined_metadata.groupby(["category", "state"])["updates"].describe().sort_values(by="mean", ascending=False)
+
+success_statistics = combined_metadata["int_state"].mean()
+success_statistics_by_category = combined_metadata.groupby("category")["int_state"].mean().sort_values(ascending=False)
+
+#%% stratified subsampling of XXX projects we want to analyse
+
+chosen_metadata = combined_metadata.copy()
+
+# only use projects of our categories that should be chosen
+chosen_metadata = chosen_metadata[chosen_metadata["category"].isin(category_list)]
+
 
 duplicates = combined_metadata[combined_metadata.duplicated(subset=["Project_Nr"])]
 duplicates = duplicates.sort_values(by = "Project_Nr", ascending = True)
