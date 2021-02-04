@@ -347,6 +347,10 @@ final_metadata_updates = final_metadata.copy()
 final_metadata_updates = final_metadata_updates[columns_crawl_list]
 final_metadata_updates["save_path"] = final_metadata_updates.apply(
     lambda x: os.path.join(base_save_path, x["category"], "Updates"), axis=1)
+
+final_metadata_updates["faq"] = np.nan
+final_metadata_updates["updates_only_visible_for_backers"] = np.nan
+
 final_metadata_updates["updates_downloaded"] = False
 
 
