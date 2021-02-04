@@ -15,10 +15,10 @@ import os
 import urllib3
 from urllib.request import urlopen as uReq
 
-#urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def get_all_input(link, path, pr_nr):
+def crawl_updates(link, path, pr_nr):
     try:
         print("=============================================================")
         print("Time: " + str(datetime.now()))
@@ -30,10 +30,21 @@ def get_all_input(link, path, pr_nr):
 
         
         options = webdriver.ChromeOptions()
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
+    
+        options.add_argument("--disable-blink-features")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+    
+        options.add_argument("window-size=1280,800")
+        options.add_argument("Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
+    
         #options.add_argument("headless")
         
-        driver = webdriver.Chrome(executable_path="/Users/philippsach/.conda/envs/Python_Analysis/bin/chromedriver",
+        driver = webdriver.Chrome(executable_path="/Users/philippsach/.conda/envs/Python_Analysis/bin/chromedriver_copy",
                               options=options)
+        
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
         driver.delete_all_cookies()
         driver.get(new_link)
@@ -50,6 +61,10 @@ def get_all_input(link, path, pr_nr):
         
         
         #soup = BeautifulSoup(driver.page_source, "lxml")
+        
+        # extract the FAQ count
+        faq = driver.find_element_by_css_selector("#faq-emoji").get_attribute("emoji-data")
+        #print("faq is: ", faq)
         
         children = driver.find_elements_by_css_selector('#project-post-interface > div > div > div >div > a[href]')
 
@@ -150,8 +165,27 @@ def get_all_input(link, path, pr_nr):
         return
 
 
-    return
+    return faq
 
+
+if __name__ == "__main__":
+    
+    metadata_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/data/overview_files"
+    overview_file = pd.read_csv(os.path.join(metadata_path, "update_metadata.csv"))
+    
+    for row in overview_file.itertuples(index=True, name="Project"):
+        
+        if row.updates_downloaded == False:  # only download projects that have not been downloaded before
+            faq_count = crawl_updates(
+                link=row.Link,
+                pr_nr=row.Project_Nr,
+                path=row.save_path)
+            
+            overview_file.at[row.Index, "updates_downloaded"] = True
+
+
+
+#%% this is only here for archive reasons to know how to run the script individually without overview file
 save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/XML_local_download/art/Updates"
 
 get_all_input(link="https://www.kickstarter.com/projects/1039804339/ben-newmans-matador",
