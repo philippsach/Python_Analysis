@@ -3,6 +3,7 @@ import re
 import os
 import pymysql
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import plotly.express as px
 import plotly.figure_factory as ff
@@ -26,9 +27,6 @@ category_list = ["design", "technology"]
 # set the columns for which the one-sample t-test (two-sided) should be done - comparing subsample with overlying population
 columns_ttest_list = ["Duration", "Backers", "number_rewards", "Images", "videos", "goal_amount_dollar", "pledged_amount_dollar", "int_state", "comments", "updates"]
 
-# set the columns that are needed for crawling later
-columns_crawl_list = ["category", "Project_Nr", "Link", "updates"]
-
 # set the columns that should be checked for outliers and outliers should be eliminated
 columns_outlier_detection_list = ["pledged_amount_dollar", "updates", "comments"]  # goal amount we probably cannot use, because we already set manually between 5000 and 1000000
 
@@ -36,11 +34,17 @@ columns_outlier_detection_list = ["pledged_amount_dollar", "updates", "comments"
 use_outlier_detection = False
 max_z_outlier = 30
 
+# do further analysis or not?
+do_further_analysis = False
+
 # set the base path where the updates should be stored later
 base_save_path = "/Users/philippsach/HiDrive/public/Kickstarter_Data"
 
 # path where the overview file should be store
 overview_save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/data/overview_files"
+
+# path where the ttest results and the statistics of our final metadata should be stored
+statistics_save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Austausch Daniel Philipp/statistics final metadata"
 
 # set amount of projects that should be analysed
 n_analyse_projects = 1000  
@@ -93,7 +97,7 @@ state_list = ["AL", "AK", "AZ", "AR", "CA",
 sqlEngine = create_engine("mysql+pymysql://phil_sach:entthesis2020@85.214.204.221/thesis")
 
 query = """
-        SELECT category, Project_Nr, county_origin, country_origin, state, updates, comments, Link, Duration, Backers, Goal, Pledged, Images, videos, number_rewards, end_year, end_month, end_day
+        SELECT category, Project_Nr, country_origin, state, updates, comments, Link, Duration, Backers, Goal, Pledged, Images, videos, number_rewards, end_year, end_month, end_day
         FROM combined_metadata
         """
 
@@ -174,6 +178,9 @@ combined_metadata = original_combined_metadata.copy()
 # only use projects from the United States (follows Allison et al 2017)
 combined_metadata = combined_metadata[combined_metadata["country_origin"] == "USA"]
 
+# just to be sure, eliminate non USD currency cammpaigns
+combined_metadata = combined_metadata[combined_metadata["pledged_currency"] == "USD"]
+
 # taken from Mollick 2014 - due to unsure seriousness of the projects
 combined_metadata = combined_metadata[combined_metadata["goal_amount_dollar"] > 5000]  # reduces approx. by half
 combined_metadata = combined_metadata[combined_metadata["goal_amount_dollar"] < 1000000]  # within USA, reduces from 175401 to 174818 projects
@@ -210,34 +217,36 @@ reduced_population_means = combined_metadata.groupby("category").mean()
 
 #%% analysis on the data
 # check how many project numbers are unique 
-print(original_combined_metadata["Project_Nr"].nunique())
 
-original_category_statistics = original_combined_metadata.groupby("category").count().sort_values(by="Project_Nr", ascending=False)
-original_category_statistics_by_state = original_combined_metadata[original_combined_metadata["state"]=="Successful"].groupby(["category", "state"]).count().sort_values(by="Project_Nr", ascending=False)
-
-
-original_comment_statistics = original_combined_metadata["comments"].describe()
-original_comment_statistics_by_category = original_combined_metadata.groupby("category")["comments"].describe().sort_values(by="mean", ascending=False)
-original_comment_statistics_by_category_and_state = original_combined_metadata.groupby(["category", "state"])["comments"].describe().sort_values(by="mean", ascending=False)
-
-original_update_statistics = original_combined_metadata["updates"].describe()
-original_update_statistics_by_category = original_combined_metadata.groupby("category")["updates"].describe().sort_values(by="mean", ascending=False)
-original_update_statistics_by_category_and_state = original_combined_metadata.groupby(["category", "state"])["updates"].describe().sort_values(by="mean", ascending=False)
-
-original_success_statistics = original_combined_metadata["int_state"].mean()
-original_success_statistics_by_category = original_combined_metadata.groupby("category")["int_state"].mean().sort_values(ascending=False)
-# original_test = original_combined_metadata.groupby(["category", "state"]).count()
-
-comment_statistics = combined_metadata["comments"].describe()
-comment_statistics_by_category = combined_metadata.groupby("category")["comments"].describe().sort_values(by="mean", ascending=False)
-comment_statistics_by_category_and_state = combined_metadata.groupby(["category", "state"])["comments"].describe().sort_values(by="mean", ascending=False)
-
-update_statistics = combined_metadata["updates"].describe()
-update_statistics_by_category = combined_metadata.groupby("category")["updates"].describe().sort_values(by="mean", ascending=False)
-update_statistics_by_category_and_state = combined_metadata.groupby(["category", "state"])["updates"].describe().sort_values(by="mean", ascending=False)
-
-success_statistics = combined_metadata["int_state"].mean()
-success_statistics_by_category = combined_metadata.groupby("category")["int_state"].mean().sort_values(ascending=False)
+if do_further_analysis:
+    print(original_combined_metadata["Project_Nr"].nunique())
+    
+    original_category_statistics = original_combined_metadata.groupby("category").count().sort_values(by="Project_Nr", ascending=False)
+    original_category_statistics_by_state = original_combined_metadata[original_combined_metadata["state"]=="Successful"].groupby(["category", "state"]).count().sort_values(by="Project_Nr", ascending=False)
+    
+    
+    original_comment_statistics = original_combined_metadata["comments"].describe()
+    original_comment_statistics_by_category = original_combined_metadata.groupby("category")["comments"].describe().sort_values(by="mean", ascending=False)
+    original_comment_statistics_by_category_and_state = original_combined_metadata.groupby(["category", "state"])["comments"].describe().sort_values(by="mean", ascending=False)
+    
+    original_update_statistics = original_combined_metadata["updates"].describe()
+    original_update_statistics_by_category = original_combined_metadata.groupby("category")["updates"].describe().sort_values(by="mean", ascending=False)
+    original_update_statistics_by_category_and_state = original_combined_metadata.groupby(["category", "state"])["updates"].describe().sort_values(by="mean", ascending=False)
+    
+    original_success_statistics = original_combined_metadata["int_state"].mean()
+    original_success_statistics_by_category = original_combined_metadata.groupby("category")["int_state"].mean().sort_values(ascending=False)
+    # original_test = original_combined_metadata.groupby(["category", "state"]).count()
+    
+    comment_statistics = combined_metadata["comments"].describe()
+    comment_statistics_by_category = combined_metadata.groupby("category")["comments"].describe().sort_values(by="mean", ascending=False)
+    comment_statistics_by_category_and_state = combined_metadata.groupby(["category", "state"])["comments"].describe().sort_values(by="mean", ascending=False)
+    
+    update_statistics = combined_metadata["updates"].describe()
+    update_statistics_by_category = combined_metadata.groupby("category")["updates"].describe().sort_values(by="mean", ascending=False)
+    update_statistics_by_category_and_state = combined_metadata.groupby(["category", "state"])["updates"].describe().sort_values(by="mean", ascending=False)
+    
+    success_statistics = combined_metadata["int_state"].mean()
+    success_statistics_by_category = combined_metadata.groupby("category")["int_state"].mean().sort_values(ascending=False)
 
 #%% stratified subsampling of XXX projects we want to analyse
 
@@ -250,42 +259,20 @@ chosen_metadata = chosen_metadata[chosen_metadata["category"].isin(category_list
 chosen_metadata_by_category = chosen_metadata.groupby("category").count()
 chosen_metadata_by_category_and_state = chosen_metadata.groupby(["category", "state"]).count()
 
-# calculate how many projects are in this current sample of chosen projects
-n_projects_sample = chosen_metadata.shape[0]
-
 
 #%% boxplots of the data
-chosen_metadata.boxplot(column="pledged_amount_dollar" ,return_type="axes")
-
-z = pd.Series(np.abs(stats.zscore(chosen_metadata["pledged_amount_dollar"])), name="z_value_pledged_amount_dollar")
-sorted_z = z.sort_values(ascending=False)
-
-sorted_chosen_metadata = chosen_metadata.sort_values(by="pledged_amount_dollar", ascending=False)
+if do_further_analysis: 
+    chosen_metadata.boxplot(column="pledged_amount_dollar" ,return_type="axes")
+    
+    z = pd.Series(np.abs(stats.zscore(chosen_metadata["pledged_amount_dollar"])), name="z_value_pledged_amount_dollar")
+    sorted_z = z.sort_values(ascending=False)
+    
+    sorted_chosen_metadata = chosen_metadata.sort_values(by="pledged_amount_dollar", ascending=False)
 
 #%% calculate the new final metadata (300 per category, non stratified)
 
-final_metadata_technology = chosen_metadata[chosen_metadata["category"] == "technology"].sample(n=500, random_state=random_state)
-final_metadata_design = chosen_metadata[chosen_metadata["category"] == "design"].sample(n=500, random_state=random_state)
-
-
-# alternative method of creating the final metadata
-number_of_projects_in_category = chosen_metadata.groupby("category").count()["Project_Nr"]
-
-
-def choose_final_metadata(population_data, category):
-    
-    category_metadata = population_data[population_data["category"] == category].copy()
-    
-    population_size = number_of_projects_in_category.loc[category]
-    sample_proportion = 300 / population_size
-    
-    final_metadata, rest_metadata = train_test_split(category_metadata, test_size=1-sample_proportion, random_state=random_state, stratify=category_metadata["int_state"])
-    
-    return final_metadata
-
-final_metadata_technology = choose_final_metadata(population_data=chosen_metadata, category="technology")
-final_metadata_video = choose_final_metadata(population_data=chosen_metadata, category="video")
-final_metadata_design = choose_final_metadata(population_data=chosen_metadata, category="design")
+final_metadata_technology = chosen_metadata[chosen_metadata["category"] == "technology"].sample(n=500, random_state=14)
+final_metadata_design = chosen_metadata[chosen_metadata["category"] == "design"].sample(n=500, random_state=55)
 
 
 #%% one sample t-test for the new chosen data
@@ -320,179 +307,163 @@ for category in category_list:
         
 ttest_df = pd.DataFrame.from_dict(ttest_dict, orient="index", columns=columns_ttest_list)
 
+#%% choose the final columns to be used
+final_metadata = final_metadata_technology.append(final_metadata_design)
 
-#%% just for reasons to find a good random state - might delete later
-test_random_states = list(range(1, 101))
+# statistics
+final_metadata_means = final_metadata.groupby("category").mean()
 
-columns_test_states = columns_ttest_list.copy()
-columns_test_states.append("random_state")
+# choose final columns
+final_metadata = final_metadata[[
+    "category",
+    "Project_Nr",
+    "Link",
+    "country_origin",
+    "state",
+    "int_state",
+    "Duration",
+    "deadline_date",
+    "goal_amount",
+    "pledged_amount",
+    "Backers",
+    "Images",
+    "videos",
+    "number_rewards",
+    "updates",
+    "comments"
+    ]]
 
-complete_ttest_df = pd.DataFrame()
-
-for one_random_state in test_random_states:
-    test_metadata_technology = chosen_metadata[chosen_metadata["category"] == "technology"].sample(n=500, random_state=one_random_state)
-    test_metadata_design = chosen_metadata[chosen_metadata["category"] == "design"].sample(n=500, random_state=one_random_state)
-    
-    optimize_ttest_df = pd.DataFrame()
-    ttest_dict = {}
-    
-    for category in category_list: 
-        print("category: ", category)
-    
-        # choose the right metadata per category
-        if category == "technology":
-            subsample_metadata = test_metadata_technology
-        
-        elif category == "design":
-            subsample_metadata = test_metadata_design
-            
-        else:
-            raise Exception("Sorry, category not in final category list")
-        
-        subsample_ttest_results_list = []
-        
-        for characteristic in columns_ttest_list:
-            print("characteristic: ", characteristic)
-            subsample_ttest_results_list.append(stats.ttest_1samp(
-                a=subsample_metadata[characteristic],
-                popmean=reduced_population_means.loc[category, characteristic]
-                )[1]  # only choose the p-value to be saved
-            )
-            
-        subsample_ttest_results_list.append(one_random_state)
-    
-        ttest_dict[category] = subsample_ttest_results_list 
-            
-    ttest_df = pd.DataFrame.from_dict(ttest_dict, orient="index", columns=columns_test_states)
-    complete_ttest_df = complete_ttest_df.append(ttest_df)
-
-
-# now make it easier for interpretation: delete all rows with less than 0.05 
-interpret_ttest_df = complete_ttest_df[complete_ttest_df > 0.05].dropna()
-
-# split analysis for design and technology
-interpret_ttest_df_design = interpret_ttest_df[interpret_ttest_df.index == "design"]
-interpret_ttest_df_tech = interpret_ttest_df[interpret_ttest_df.index == "technology"]
-
-# calculate the average over the columns except for the random state column
-interpret_ttest_df_design["mean"] = interpret_ttest_df_design.iloc[:, 0:10].mean(axis=1)
-interpret_ttest_df_tech["mean"] = interpret_ttest_df_tech.iloc[:, 0:10].mean(axis=1)
-
-interpret_ttest_df_design = interpret_ttest_df_design.sort_values(by="mean", ascending=False)
-interpret_ttest_df_tech = interpret_ttest_df_tech.sort_values(by="mean", ascending=False)
-
-#%% visualize distribution etc. of 
-chosen_metadata_technology = chosen_metadata[chosen_metadata["category"] == "technology"]
-chosen_metadata_design = chosen_metadata[chosen_metadata["category"] == "design"]
-chosen_metadata_video = chosen_metadata[chosen_metadata["category"] == "video"]
-
-
-plt.figure()
-fig1 = sns.kdeplot(final_metadata_technology["goal_amount_dollar"])
-plt.figure()
-fig2 = sns.kdeplot(chosen_metadata_technology["goal_amount_dollar"])
-
-# do the same in plotly
-fig = ff.create_distplot(final_metadata_technology["goal_amount_dollar"], group_labels = ["technology"], show_hist=False)
-
-#%% calculate the old final metadata (stratified by category)
-
-# calculate the proportion of the "train" dataset that we will use
-'''
-will use train test split of scikit learn to choose the projects
-because it provides easy functionality for stratified sampling;
-need the proportion of the projects we want to analyse of all the projects that are in chosen_metadata by now
-'''
-sample_proportion = n_analyse_projects / n_projects_sample
-
-final_metadata, rest_metadata = train_test_split(chosen_metadata, 
-                                                 test_size=(1-sample_proportion),
-                                                 random_state=random_state,
-                                                 stratify=chosen_metadata[["category", "state"]]  # old: also used state for stratification
-                                                 )
-
-final_metadata_by_category = final_metadata.groupby("category").count()
-final_metadata_by_category_and_state = final_metadata.groupby(["category", "state"]).count()
-
-final_success_statistics = final_metadata.groupby("category")["int_state"].mean()
-
-final_update_statistics_by_category = final_metadata.groupby("category")["updates"].describe()
-final_update_statistics_by_category_and_state = final_metadata.groupby(["category", "state"])["updates"].describe()
-final_comment_statistics_by_category = final_metadata.groupby("category")["comments"].describe()
-final_comment_statistics_by_category_and_state = final_metadata.groupby(["category", "state"])["comments"].describe()
-
-
-#%% prepare the one-sample t-test to compare statistics within chosen sample with overlying population
-
-'''
-null hypothesis H_0 is: the expected value (mean) of the subsample is equal to the given population mean, popmean
-we reject the null hypothesis if p is < 0.05
-otherwise, we accept the null hypothesis
-'''
-
-# create empty data frame for the 
-ttest_df = pd.DataFrame()
-ttest_dict = {}
-
-for category in category_list:
-    print("category: ", category)
-    
-    # filter to data for this category
-    subsample_metadata = final_metadata[final_metadata["category"] == category].copy()
-    
-    subsample_ttest_results_list = []
-    
-    for characteristic in columns_ttest_list:
-        print("characteristic: ", characteristic)
-        subsample_ttest_results_list.append(stats.ttest_1samp(
-            a=subsample_metadata[characteristic],
-            popmean=reduced_population_means.loc[category, characteristic]
-            )[1]  # only choose the p-value to be saved
-        )
-
-    ttest_dict[category] = subsample_ttest_results_list 
-        
-ttest_df = pd.DataFrame.from_dict(ttest_dict, orient="index", columns=columns_ttest_list)
-
-
-#%% validation of the results of the dataframe we just produced
-
-# test on one subcategory: technology
-#final_metadata_technology = final_metadata[final_metadata["category"] == "technology"]
-
-print(stats.ttest_1samp(a=final_metadata_technology["Duration"], popmean=population_means.loc["technology", "Duration"]))
-
-# calculate the means on the subsamples so that we can also manually compare between population value and value for subsample
-
-subsample_means = final_metadata_technology.mean()
-#subsample_means = final_metadata.groupby("category").mean()
-
-
-# just create these for faster visual comparison in Notion
-important_population_means = population_means[population_means.index.isin(category_list)]
-important_population_means = important_population_means[columns_ttest_list]
-important_reduced_population_means = reduced_population_means[reduced_population_means.index.isin(category_list)]
-important_reduced_population_means = important_reduced_population_means[columns_ttest_list]
-important_subsample_means = subsample_means[columns_ttest_list]
-
-
-#%% create the needed overview files about the updates
 
 final_metadata_updates = final_metadata.copy()
-final_metadata_updates = final_metadata_updates[columns_crawl_list]
+
 final_metadata_updates["save_path"] = final_metadata_updates.apply(
     lambda x: os.path.join(base_save_path, x["category"], "Updates"), axis=1)
 
 final_metadata_updates["faq"] = np.nan
 final_metadata_updates["updates_only_visible_for_backers"] = np.nan
 
+final_metadata_updates["hidden_project"]= False
+
+final_metadata_updates["own_dev_comment"] = ""
 final_metadata_updates["updates_downloaded"] = False
+
 
 
 #%% save the needed files in corresponding locations on the hard disk
 final_metadata_updates.to_csv(os.path.join(overview_save_path, "update_metadata.csv"), index=False)
 
+# write statistics to an excel file :) 
+
+excel_writer = pd.ExcelWriter(os.path.join(statistics_save_path, "statistics_metadata.xlsx"), engine="xlsxwriter")
+
+final_metadata_means.to_excel(excel_writer, sheet_name="final_metadata_means")
+reduced_population_means.to_excel(excel_writer, sheet_name="reduced_population_means")
+ttest_df.to_excel(excel_writer, sheet_name="ttest_results")
+
+excel_writer.save()
+
+#%% just for reasons to find a good random state - might delete later
+if do_further_analysis:
+    test_random_states = list(range(1, 101))
+    
+    columns_test_states = columns_ttest_list.copy()
+    columns_test_states.append("random_state")
+    
+    complete_ttest_df = pd.DataFrame()
+    
+    for one_random_state in test_random_states:
+        test_metadata_technology = chosen_metadata[chosen_metadata["category"] == "technology"].sample(n=500, random_state=one_random_state)
+        test_metadata_design = chosen_metadata[chosen_metadata["category"] == "design"].sample(n=500, random_state=one_random_state)
+        
+        optimize_ttest_df = pd.DataFrame()
+        ttest_dict = {}
+        
+        for category in category_list: 
+            print("category: ", category)
+        
+            # choose the right metadata per category
+            if category == "technology":
+                subsample_metadata = test_metadata_technology
+            
+            elif category == "design":
+                subsample_metadata = test_metadata_design
+                
+            else:
+                raise Exception("Sorry, category not in final category list")
+            
+            subsample_ttest_results_list = []
+            
+            for characteristic in columns_ttest_list:
+                print("characteristic: ", characteristic)
+                subsample_ttest_results_list.append(stats.ttest_1samp(
+                    a=subsample_metadata[characteristic],
+                    popmean=reduced_population_means.loc[category, characteristic]
+                    )[1]  # only choose the p-value to be saved
+                )
+                
+            subsample_ttest_results_list.append(one_random_state)
+        
+            ttest_dict[category] = subsample_ttest_results_list 
+                
+        ttest_df = pd.DataFrame.from_dict(ttest_dict, orient="index", columns=columns_test_states)
+        complete_ttest_df = complete_ttest_df.append(ttest_df)
+    
+    
+    # now make it easier for interpretation: delete all rows with less than 0.05 
+    interpret_ttest_df = complete_ttest_df[complete_ttest_df > 0.05].dropna()
+    
+    # split analysis for design and technology
+    interpret_ttest_df_design = interpret_ttest_df[interpret_ttest_df.index == "design"]
+    interpret_ttest_df_tech = interpret_ttest_df[interpret_ttest_df.index == "technology"]
+    
+    # calculate the average over the columns except for the random state column
+    interpret_ttest_df_design["mean"] = interpret_ttest_df_design.iloc[:, 0:10].mean(axis=1)
+    interpret_ttest_df_tech["mean"] = interpret_ttest_df_tech.iloc[:, 0:10].mean(axis=1)
+    
+    interpret_ttest_df_design = interpret_ttest_df_design.sort_values(by="mean", ascending=False)
+    interpret_ttest_df_tech = interpret_ttest_df_tech.sort_values(by="mean", ascending=False)
+
+#%% visualize distribution etc. of 
+if do_further_analysis:
+    chosen_metadata_technology = chosen_metadata[chosen_metadata["category"] == "technology"]
+    chosen_metadata_design = chosen_metadata[chosen_metadata["category"] == "design"]
+    
+    
+    plt.figure()
+    fig1 = sns.kdeplot(final_metadata_technology["goal_amount_dollar"])
+    plt.figure()
+    fig2 = sns.kdeplot(chosen_metadata_technology["goal_amount_dollar"])
+    
+
+#%% validation of the results of the dataframe we just produced
+
+if do_further_analysis:
+    # test on one subcategory: technology
+    #final_metadata_technology = final_metadata[final_metadata["category"] == "technology"]
+    
+    print(stats.ttest_1samp(a=final_metadata_technology["Duration"], popmean=population_means.loc["technology", "Duration"]))
+    
+    # calculate the means on the subsamples so that we can also manually compare between population value and value for subsample
+    
+    subsample_means = final_metadata_technology.mean()
+    #subsample_means = final_metadata.groupby("category").mean()
+    
+    
+    # just create these for faster visual comparison in Notion
+    important_population_means = population_means[population_means.index.isin(category_list)]
+    important_population_means = important_population_means[columns_ttest_list]
+    important_reduced_population_means = reduced_population_means[reduced_population_means.index.isin(category_list)]
+    important_reduced_population_means = important_reduced_population_means[columns_ttest_list]
+    important_subsample_means = subsample_means[columns_ttest_list]
+
+
+
+
+
+
 #%% archive for comments metadata creation - not needed anymore...
+"""
+
 final_metadata_comments = final_metadata.copy()
 
 final_metadata_comments["comments_path"] = final_metadata_comments.apply(
@@ -535,59 +506,6 @@ for category in final_metadata_comments["category"].unique():
     # create dataframe containing info from hard disk including all categories
     xml_df = xml_df.append(cat_xml_df)
 
-for row in final_metadata_comments.itertuples(index=True, name="cat"):
-    
-    
+ 
+"""
 
-
-#%% further stuff (more of archive)
-
-duplicates = combined_metadata[combined_metadata.duplicated(subset=["Project_Nr"])]
-duplicates = duplicates.sort_values(by = "Project_Nr", ascending = True)
-
-duplicates_project_nr_and_category = combined_metadata[combined_metadata.duplicated(subset = ["Project_Nr", "category"])]
-
-
-# replace values in column category with numerical values so that we can carry out numerical analysis
-dict_category = {
-    "art": 1,
-    "comic": 2,
-    "craft": 3,
-    "dance": 4,
-    "design": 5,
-    "fashion": 6,
-    "food": 7,
-    "games": 8,
-    "journalism": 9,
-    "music": 10,
-    "photo": 11,
-    "publishing": 12,
-    "technology": 13,
-    "theater": 14,
-    "video": 15
-}
-
-combined_metadata_numerical = combined_metadata.replace({"category": dict_category})
-
-print(combined_metadata_numerical["category"].unique())
-
-
-train, test = train_test_split(combined_metadata, test_size = 0.99, random_state=42, stratify=combined_metadata[["category", "state"]])
-
-train_stats_category = train.groupby("category")["Project_Nr"].count().reset_index()
-train_stats_category["percentage"] = train_stats_category["Project_Nr"]/train_stats_category["Project_Nr"].sum()
-
-train_stats_successful = train.groupby("state")["Project_Nr"].count().reset_index()
-train_stats_successful["percentage"] = train_stats_successful["Project_Nr"]/train_stats_successful["Project_Nr"].sum()
-
-
-
-original_stats_category = combined_metadata.groupby("category")["Project_Nr"].count().reset_index()
-original_stats_category["percentage"] = original_stats_category["Project_Nr"]/original_stats_category["Project_Nr"].sum()
-
-original_stats_successful = combined_metadata.groupby("state")["Project_Nr"].count().reset_index()
-original_stats_successful["percentage"] = original_stats_successful["Project_Nr"]/original_stats_successful["Project_Nr"].sum()
-
-print("datatypes of combined_metadata: ", combined_metadata.dtypes)
-
-print("average number of comments in original set: ", combined_metadata["comments"].mean())
