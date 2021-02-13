@@ -56,6 +56,13 @@ def crawl_updates(link, path, pr_nr):
         driver.get(new_link)
         driver.switch_to.default_content()
         
+        # try to catch the case when automatic scraping was detected
+        if driver.find_elements_by_class_name("page-title"):
+            if driver.find_element_by_class_name("page-title").text == "Please verify you are a human":
+                print("mierda, we got blown")
+                sleep(10)  # this time is needed for manual clicking of PRESS AND HOLD
+                input("Press ENTER to continue ... ")
+        
         project_hidden = False
         
         if driver.find_elements_by_id("hidden_project"):
@@ -64,12 +71,17 @@ def crawl_updates(link, path, pr_nr):
             only_visible_for_backers_count = np.nan
             faq = np.nan
         
+        if driver.find_elements_by_xpath('//*[@id="project-post-interface"]/div/h3'):
+            print("we are having troubles loading updates right now...")
+            sleep(10)  
+            input("Press ENTER to continue ... ")
+        
         # only continue crawling if project is not hidden
         if not project_hidden:
             
             while True:
                 try:
-                    showmore=WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH ,'//*[@id="project-post-interface"]/div/div[11]/div/div/div/button')))
+                    showmore=WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH ,'//*[@id="project-post-interface"]/div/div[last()]/div/div/div/button')))
                     showmore.click()
                 except TimeoutException:
                     break
@@ -113,6 +125,9 @@ def crawl_updates(link, path, pr_nr):
                     
                     driver.switch_to.window(driver.window_handles[1])
                     
+                    
+                    
+                    
                     # need to wait until header is found, while switching and loading new page could not find
                     header = WebDriverWait(driver, 5).until(
                         EC.presence_of_element_located(
@@ -122,6 +137,14 @@ def crawl_updates(link, path, pr_nr):
                             )
                         )
                     #header = driver.find_element_by_css_selector('#project-post-interface > div > div > div > article > header')
+                    
+                    # check if there are troubles to load this post right now
+                    if header.find_elements_by_xpath('.//div/h3'):
+                            
+                        # then there are trouble loading this post
+                        print("Having trouble loading this post right now.")
+                        sleep(10)  # this time is needed for manual clicking of PRESS AND HOLD
+                        input("Press ENTER to continue ... ")
                     
                     update_id = header.find_element_by_xpath('.//div[1]/div/span').text
                     update_title = header.find_element_by_class_name('mb3').text
@@ -247,7 +270,7 @@ def crawl_updates(link, path, pr_nr):
 if __name__ == "__main__":
     
     metadata_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/data/overview_files"
-    overview_file = pd.read_csv(os.path.join(metadata_path, "update_metadata.csv"))
+    overview_file = pd.read_csv(os.path.join(metadata_path, "current_update_metadata.csv"))
     
     for row in overview_file.itertuples(index=True, name="Project"):
         
@@ -262,6 +285,7 @@ if __name__ == "__main__":
             overview_file.at[row.Index, "updates_only_visible_for_backers"] = only_backers_visible_count
             overview_file.at[row.Index, "hidden_project"] = hidden_project
 
+    overview_file.to_csv(os.path.join(metadata_path, "current_update_metadata.csv"), index=False)
 
 #%% this is only here for archive reasons to know how to run the script individually without overview file
 """
@@ -273,3 +297,23 @@ get_all_input(link="https://www.kickstarter.com/projects/1039804339/ben-newmans-
               pr_nr = "1039804339")
 
 """
+
+
+
+'''
+
+this is button load more in updates:
+    
+//*[@id="project-post-interface"]/div/div[11]/div/div/div/button
+//*[@id="project-post-interface"]/div/div[21]/div/div/div/button
+
+--> can use last() in xpath instead of 11 or 21
+    
+this is button load more in comments:
+//*[@id="react-project-comments"]/div/button
+
+
+
+'''
+
+
