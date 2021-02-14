@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.common.exceptions import ElementClickInterceptedException, ElementNotInteractableException
 import pandas as pd
 import numpy as np
 import requests
@@ -17,6 +18,7 @@ from datetime import datetime
 import os
 import urllib3
 from urllib.request import urlopen as uReq
+from random import random
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -107,6 +109,8 @@ def crawl_updates(link, path, pr_nr):
                     
             for idx, child in enumerate(children_all):
                 
+                sleep(1.5*random())
+                
                 # case that it is a visble update
                 if child.find_elements_by_xpath(".//a/div"):
                     only_visible_for_backers = False
@@ -167,15 +171,67 @@ def crawl_updates(link, path, pr_nr):
                     update_text = iframe.text
                     
                     pics = iframe.find_elements_by_tag_name("img")
-                    vids = iframe.find_elements_by_tag_name("vid")
+                    vids = iframe.find_elements_by_tag_name("video")
                     video_count = len(vids)
+                    
                     gif_counter = 0
                     pic_counter = 0
+                    
+                    # directly embedded gifs and videos affect also the picture count
                     for pic in pics:
-                        if ".gif" in str(pic):
-                            gif_counter +=1
+                        if pic.get_attribute("data-src") is not None:
+                            # print("here we are")
+                            if ".gif" in pic.get_attribute("data-src"):
+                                # print("gif")
+                                gif_counter +=1
+                            else:
+                                # print("pic")
+                                pic_counter +=1
+                                
                         else:
-                            pic_counter +=1
+                             # videos that are directly embedded in Kickstarter are also counted as pictures - reduce that
+                            if pic.get_attribute("alt") is not None:
+                                if pic.get_attribute("alt") != " project video thumbnail":
+                                    pic_counter +=1
+                            else: 
+                                pic_counter +=1
+                    
+                    embed_elements = iframe.find_elements_by_class_name("embedly-card-hug")
+                    
+                    for embed_element in embed_elements:
+                        # try to click and open the link in a new window 
+                        
+                        sleep(2)
+                        
+                        # try to click the button
+                        try: 
+                            old_length = len(driver.window_handles)
+                            sleep(2)
+                            embed_element.click()
+                            sleep(2)
+                            new_length = len(driver.window_handles)
+                            
+                            # check if new tab has been opened
+                            if new_length > old_length: 
+                                driver.switch_to.window(driver.window_handles[new_length-1])
+                                
+                                if "giphy" in driver.current_url:
+                                    print("this is an external gif link")
+                                    gif_counter += 1
+                                
+                                driver.close()
+                                driver.switch_to.window(driver.window_handles[old_length - 1])
+                                sleep(1)
+                            
+                            else:
+                                "this seems to be a youtube video embedded in the update"
+                                video_count += 1
+                        
+                        # if not clickable, also say that this is a gif
+                        except ElementClickInterceptedException:
+                            gif_counter += 1
+                        except ElementNotInteractableException:
+                            gif_counter += 1
                     
                     sleep(5)
                     

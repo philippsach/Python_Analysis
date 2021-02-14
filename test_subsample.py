@@ -362,6 +362,55 @@ ttest_df.to_excel(excel_writer, sheet_name="ttest_results")
 
 excel_writer.save()
 
+
+#%% create the overview file for downloading the daily backers and daily funding amount
+metadata_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/data/overview_files"
+overview_file = pd.read_csv(os.path.join(metadata_path, "current_update_metadata.csv"))
+
+daily_data_save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Austausch Daniel Philipp/daily project data"
+
+daily_overview_file = overview_file[[
+    "Link",
+    "category",
+    "Duration",
+    "pledged_amount",
+    "Backers"
+    ]]
+
+daily_data = pd.DataFrame(["Daily Funding Amount", "Daily Backers"], columns=["data"])
+daily_data["key"] = 1
+
+daily_overview_file["key"] = 1
+
+daily_overview_file = daily_overview_file.merge(daily_data, how="outer")
+daily_overview_file.drop(["key"], axis=1, inplace=True)
+
+# add 60 columns that can be filled with the daily funding data
+for i in range(1,62):
+    daily_overview_file[str(i)] = ""
+
+daily_overview_file["Duration"].iloc[0]
+daily_overview_file.loc[:, str(30):]
+
+daily_overview_file["Link"] = daily_overview_file["Link"].apply(lambda x: x.split("?")[0])
+daily_overview_file["Link"] = daily_overview_file["Link"].str.rstrip()
+
+daily_overview_file.rename(columns={"Link": "original_link"}, inplace=True)
+daily_overview_file.insert(1, "kicktraq_link", daily_overview_file["original_link"])
+
+daily_overview_file["kicktraq_link"] = daily_overview_file["kicktraq_link"].str.replace("kickstarter", "kicktraq")
+daily_overview_file["kicktraq_link"] = daily_overview_file["kicktraq_link"] + "/#chart-daily"
+
+for row in daily_overview_file.itertuples(index=True, name="Project"):
+    duration = min(row.Duration, 60)
+    
+    daily_overview_file.at[row.Index, str(1) : str(duration+1)] = 0
+
+
+excel_writer = pd.ExcelWriter(os.path.join(daily_data_save_path, "collect_daily_data.xlsx"), engine="xlsxwriter")
+daily_overview_file.to_excel(excel_writer, sheet_name="daily_data")
+excel_writer.save()
+
 #%% just for reasons to find a good random state - might delete later
 if do_further_analysis:
     test_random_states = list(range(1, 101))
