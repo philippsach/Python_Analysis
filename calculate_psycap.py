@@ -204,58 +204,85 @@ def count_words_in_list(loc_comments_df):
     loc_comments_df["count_prosocial"] = loc_comments_df.content.str.count(search_prosocial_language)
     
 
-    loc_comments_df["commentLength"] = loc_comments_df.apply(lambda x: len(x["content"].split()), axis=1)
+    loc_comments_df["word_count"] = loc_comments_df.apply(lambda x: len(x["content"].split()), axis=1)
 
     return loc_comments_df
 
 
-def wrapper_wordcount(loc_comments_df):
+def wrapper_wordcount(loc_comments_df, bol_comment_df):
+    '''
+    
+
+    Parameters
+    ----------
+    loc_comments_df : TYPE
+        DESCRIPTION.
+    bol_comment_df : boolean
+        True if it is a comments dataframe that is passed. False if it is an updates dataframe.
+
+    Returns
+    -------
+    None.
+
+    '''
     psycap_comments_df = loc_comments_df.copy()
-    psycap_comments_df = psycap_comments_df[psycap_comments_df["title"].isin(creator_names)]
+    
+    if bol_comment_df:
+        psycap_comments_df = psycap_comments_df[psycap_comments_df["title"].isin(creator_names)]
+        
     psycap_comments_df = count_words_in_list(loc_comments_df=loc_comments_df)
     psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
     
-    psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism": "commentLength"]
-    psycap_comments_df["shareOptimism"] = psycap_comments_df["count_organizational_optimism"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["shareHope"] = psycap_comments_df["count_organizational_hope"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["shareResilience"] = psycap_comments_df["count_organizational_resilience"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["shareConfidence"] = psycap_comments_df["count_organizational_confidence"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["sharePsyCap"] = psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
+    psycap_comments_df = [:, ]
+# =============================================================================
+#     psycap_comments_df["shareOptimism"] = psycap_comments_df["count_organizational_optimism"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["shareHope"] = psycap_comments_df["count_organizational_hope"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["shareResilience"] = psycap_comments_df["count_organizational_resilience"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["shareConfidence"] = psycap_comments_df["count_organizational_confidence"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["sharePsyCap"] = psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
+# =============================================================================
     psycap_comments_df["shareMisspellings"] = psycap_comments_df["count_misspellings"] / psycap_comments_df[
-        "commentLength"]
+        "word_count"]
 
-    psycap_comments_df["shareProsocial"] = psycap_comments_df["count_prosocial"] / psycap_comments_df["commentLength"]
+    psycap_comments_df["shareProsocial"] = psycap_comments_df["count_prosocial"] / psycap_comments_df["word_count"]
 
     return psycap_comments_df
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # import comments_df and filter to those comments that should be analysed - here: the comments of the creator
-    comments_df = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
-    psycap_comments_df = comments_df[comments_df["title"].isin(creator_names)].copy()
-
-    psycap_comments_df = count_words_in_list(loc_comments_df=psycap_comments_df)
     
+  
+# COMMENTED IT OUT; Probably do not need it any more
+    # made some problems when importing package to another script
+# =============================================================================
+#     comments_df = pd.read_csv("/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/test/full_comments_df_art_test.csv")
+#     psycap_comments_df = comments_df[comments_df["title"].isin(creator_names)].copy()
+# 
+#     psycap_comments_df = count_words_in_list(loc_comments_df=psycap_comments_df)
+#     
+# 
+#     psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
+#     psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism": "commentLength"]
+#     psycap_comments_df["shareOptimism"] = psycap_comments_df["count_organizational_optimism"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["shareHope"] = psycap_comments_df["count_organizational_hope"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["shareResilience"] = psycap_comments_df["count_organizational_resilience"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["shareConfidence"] = psycap_comments_df["count_organizational_confidence"] / psycap_comments_df[
+#         "commentLength"]
+#     psycap_comments_df["sharePsyCap"] = psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
+#     psycap_comments_df["shareMisspellings"] = psycap_comments_df["count_misspellings"] / psycap_comments_df[
+#         "commentLength"]
+#     
+#     psycap_statistics = wrapper_wordcount(comments_df)
+# =============================================================================
 
-    psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
-    psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism": "commentLength"]
-    psycap_comments_df["shareOptimism"] = psycap_comments_df["count_organizational_optimism"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["shareHope"] = psycap_comments_df["count_organizational_hope"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["shareResilience"] = psycap_comments_df["count_organizational_resilience"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["shareConfidence"] = psycap_comments_df["count_organizational_confidence"] / psycap_comments_df[
-        "commentLength"]
-    psycap_comments_df["sharePsyCap"] = psycap_comments_df["count_psycap"] / psycap_comments_df["commentLength"]
-    psycap_comments_df["shareMisspellings"] = psycap_comments_df["count_misspellings"] / psycap_comments_df[
-        "commentLength"]
-    
-    psycap_statistics = wrapper_wordcount(comments_df)
 
 
 

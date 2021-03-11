@@ -4,6 +4,10 @@ import pandas as pd
 import os
 import datetime as dt
 
+from sqlalchemy import create_engine
+
+import calculate_psycap
+
 #%% user settings
 maxqda_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/00_FINAL/exports_maxqda"
 coding_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Austausch Daniel Philipp/datasets for coding"
@@ -11,6 +15,9 @@ overview_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analy
 statistics_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/00_FINAL"
     
 save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/00_FINAL"
+
+sqlEngine = create_engine("mysql+pymysql://phil_sach:entthesis2020@85.214.204.221/thesis")
+query = "SELECT category, Project_Nr, creator_experience FROM combined_metadata"
 
 
 #%% function definition
@@ -124,6 +131,20 @@ def create_long_raw_data_codeabdeckung(codeabdeckung):
 codeabdeckung_tech = pd.read_excel(os.path.join(maxqda_file_path, "2021-03-03_Codeabdeckung_Technology_Content.xlsx"))
 codeabdeckung_design = pd.read_excel(os.path.join(maxqda_file_path, "2021-03-11_Codeabdeckung_Design_Content.xlsx"))
 
+# GET creator experience
+creator_experience = pd.read_sql(query, con=sqlEngine)
+creator_experience["creator_experience"] = creator_experience["creator_experience"].str.replace("\n+", "",regex=True)  # new line characters
+creator_experience["creator_experience"] = creator_experience["creator_experience"].str.replace(",", "",regex=True)  # comma in number
+
+creator_experience["creator_experience"] = creator_experience["creator_experience"].str.strip() # remove leading and trailing whitespaces
+creator_experience["creator_experience"] = creator_experience["creator_experience"].str.replace("First created", "0", regex=True)  # new line characters
+creator_experience.loc[creator_experience["creator_experience"].str.contains("backed"), "creator_experience"] = "0"
+
+creator_experience["creator_experience"] = creator_experience["creator_experience"].str.split().str[0]
+creator_experience["creator_experience"] = creator_experience["creator_experience"].astype(int)
+
+# TODO: INSERT HERE - importing of codeabdeckung for the content related title and processing of it!! 
+
 long_raw_data_tech = create_long_raw_data_codeabdeckung(codeabdeckung_tech)
 long_raw_data_design = create_long_raw_data_codeabdeckung(codeabdeckung_design)
 
@@ -147,7 +168,30 @@ coding_df["deadline_date"] = coding_df["deadline_date"].dt.date
 
 coding_df = coding_df.iloc[:, 1:]
 
-coding_df = coding_df.drop(["update_title", "content", "original_link"], axis=1)
+coding_df[["Project_Nr", "Update_Nr"]] = coding_df["project_updateID"].str.rsplit("_", n=1, expand=True)
+
+coding_df = coding_df.drop(["original_link"], axis=1)
+
+# TODO: INSERT HERE: CLEAN CONTENT OF UPDATES
+
+coding_df["content"] = coding_df["content"].str.replace("\S*@\S*\s?", "", regex=True)  # email-addresses
+coding_df["content"] = coding_df["content"].str.replace("\n+", " ",regex=True)  # new line characters
+coding_df["content"] = coding_df["content"].str.replace("(-|_){2,}", "", regex=True)  # the -- or __ when they divide projects
+coding_df["content"] = coding_df["content"].str.replace("( ){2,}", " ", regex=True)  # replace two or more white spaces with only one whitespace
+coding_df["content"] = coding_df["content"].str.replace("\'", "", regex=True)  # distracting single quotes
+coding_df["content"] = coding_df["content"].str.replace(
+    r"(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)"
+    , "", regex=True)  # urls
+
+
+coding_df = calculate_psycap.count_words_in_list(coding_df)
+
+# change types of counted columns
+coding_df.loc[:, "count_organizational_optimism" : "word_count"] = coding_df.loc[:, "count_organizational_optimism" : "word_count"].astype(float)
+
+# calculate the share of prosocial words
+coding_df["share_prosocial"] = coding_df["count_prosocial"] / coding_df["word_count"]
+
 
 # re-establish a category column
 coding_df["category"] = coding_df["group_category"].copy()
@@ -197,6 +241,19 @@ update_level_data[["Project_Nr", "Update_Nr"]] = update_level_data["project_upda
 project_level_weekend = update_level_data[["Project_Nr", "bol_weekend"]].copy()
 project_level_weekend = project_level_weekend.groupby("Project_Nr").mean()
 
+
+
+# TODO: HERE OR SOMEWHERE ELSE? - GET THE category, project_nr, crowdfunding experience from SQL
+# TODO: clean the crowdfunding experience to an integer value
+
+project_level_xml_and_structural_data = update_level_data[["Project_Nr", "picture_count", "gif_count", "video_count", "like_count", "comment_count",
+                                            "count_organizational_optimism", "count_organizational_hope", "count_organizational_resilience",
+                                            "count_organizational_confidence", "count_misspellings", "count_psycap", "count_prosocial",
+                                            "share_prosocial", "word_count"]].copy()
+project_level_xml_and_structural_data = project_level_xml_and_structural_data.fillna(0)
+project_level_xml_and_structural_data = project_level_xml_and_structural_data.groupby("Project_Nr").mean()
+project_level_xml__and_structural_data = project_level_xml_and_structural_data.reset_index()
+
 # get the project means for each type of information
 project_level_data_wide = update_level_data_wide.groupby("Project_Nr").mean()
 
@@ -214,13 +271,15 @@ project_level_data = project_level_data.reset_index()
 
 # add information of share of updates on weekends
 project_level_data = project_level_data.merge(project_level_weekend, how="left", on="Project_Nr")
-
-
+project_level_data = project_level_data.merge(project_level_xml_and_structural_data, how="left", on="Project_Nr")
 
 
 
 #%% bring together with overview file
 overview_file = pd.read_csv(os.path.join(overview_file_path, "current_update_metadata.csv"))
+
+overview_file = overview_file.merge(creator_experience, how="left", on=["category", "Project_Nr"])
+
 statistics_hidden_updates = pd.read_csv(os.path.join(statistics_file_path, "updates_and_hidden_updates_within_duration.csv"))
 statistics_hidden_updates = statistics_hidden_updates.rename(columns={"projectID": "Project_Nr"})
 
