@@ -97,7 +97,7 @@ state_list = ["AL", "AK", "AZ", "AR", "CA",
 sqlEngine = create_engine("mysql+pymysql://phil_sach:entthesis2020@85.214.204.221/thesis")
 
 query = """
-        SELECT category, Project_Nr, country_origin, state, updates, comments, Link, Duration, Backers, Goal, Pledged, Images, videos, number_rewards, end_year, end_month, end_day
+        SELECT category, Project_Nr, country_origin, state, updates, comments, Link, Duration, Backers, Goal, Pledged, Images, videos, number_rewards, Deadline, end_year, end_month, end_day
         FROM combined_metadata
         """
 
@@ -124,6 +124,8 @@ original_combined_metadata["goal_currency"] = original_combined_metadata["goal_c
 original_combined_metadata["pledged_currency"] = original_combined_metadata["pledged_currency"].map(currency_dict)
 
 original_combined_metadata["deadline_date"] = original_combined_metadata.apply(lambda x: date(int(x["end_year"]), int(x["end_month"]), int(x["end_day"])) ,axis=1)
+
+
 
 
 # convert the currencies

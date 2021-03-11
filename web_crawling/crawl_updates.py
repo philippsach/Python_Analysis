@@ -109,7 +109,8 @@ def crawl_updates(link, path, pr_nr):
                     
             for idx, child in enumerate(children_all):
                 
-                sleep(1.5*random())
+                sleep(2)
+                sleep(2*random())
                 
                 # case that it is a visble update
                 if child.find_elements_by_xpath(".//a/div"):
@@ -372,4 +373,11 @@ this is button load more in comments:
 
 '''
 
+# link = overview_file["Link"].iloc[581]
+# pr_nr = overview_file["Project_Nr"].iloc[581]
+# save_path = overview_file["save_path"].iloc[581]
 
+# faq_count, only_backers_visible_count, hidden_project = crawl_updates(
+#                 link=link,
+#                 pr_nr=pr_nr,
+#                 path=save_path)
