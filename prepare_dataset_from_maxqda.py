@@ -13,12 +13,26 @@ maxqda_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/00_FI
 coding_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Austausch Daniel Philipp/datasets for coding"
 overview_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Python_Analysis/data/overview_files"
 statistics_file_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/00_FINAL"
+
+austausch_save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Austausch Daniel Philipp/00_datasets_regression"
     
 save_path = "/Users/philippsach/Documents/Uni/Masterarbeit/Datasets/00_FINAL"
 
 sqlEngine = create_engine("mysql+pymysql://phil_sach:entthesis2020@85.214.204.221/thesis")
 query = "SELECT category, Project_Nr, creator_experience FROM combined_metadata"
 
+binary_coding_content = False  # if True, then on update level: is coded 1 if topic was mentioned. then later average is calculated on project level
+
+# exclude projects that have more than 25 updates or are in multiple languages
+projects_to_be_excluded = [
+    "406037970",
+    "tanttle",
+    "621750189",
+    "warpo",
+    "1164873408",
+    "1228433885",
+    "doubletapaudio"
+    ]
 
 #%% function definition
 
@@ -41,7 +55,7 @@ def multiindex_pivot(df, index=None, columns=None, values=None):
     return df
     
 
-def create_long_raw_data_codeabdeckung(codeabdeckung):
+def create_long_raw_data_codeabdeckung(codeabdeckung, category, binary_coding):
     
     # remove the total column
     codeabdeckung = codeabdeckung.drop("TOTAL", axis=1)
@@ -68,7 +82,7 @@ def create_long_raw_data_codeabdeckung(codeabdeckung):
     
     transposed = transposed.fillna("0")
     
-    transposed["category"] = "technology"
+    transposed["category"] = category
     
     transposed = transposed[[
         "category",
@@ -101,6 +115,11 @@ def create_long_raw_data_codeabdeckung(codeabdeckung):
     transposed.loc[:, "content": ] = transposed.loc[:, "content":].apply(lambda x: x.str.strip("%"))
     transposed.loc[:, "GESAMTTEXT": ] = transposed.loc[:, "GESAMTTEXT": ].astype("float")
     transposed.loc[:, "content": ] = transposed.loc[:, "content": ] / 100
+    
+    # code 0 - 1 if binary coding is wanted
+    if binary_coding:
+        affected_data = transposed.loc[:, "content":]
+        affected_data[affected_data>0] = 1
         
     long_raw_data = transposed.melt(
         id_vars=["category", "project_updateID", "Project_Nr", "Update_Nr", "GESAMTTEXT", "CODIERTTEXT", "NICHT CODIERT", "content"],
@@ -125,11 +144,49 @@ def create_long_raw_data_codeabdeckung(codeabdeckung):
     
     return long_raw_data
 
+
+def create_long_data_title(title_df, category):
+    
+    title = title_df.copy()
+    
+    # remove the total column
+    title = title.drop("TOTAL", axis=1)
+    
+    title = title.set_index(["Codesystem"])
+    
+    # delete rows that only contain nan values
+    title = title.dropna(how="all")
+    
+    transposed = title.transpose()
+    transposed = transposed.reset_index().rename({"index": "project_updateID"}, axis=1)
+    
+    transposed[["Project_Nr", "Update_Nr"]] = transposed["project_updateID"].str.rsplit("_", n=1, expand=True)
+    
+    transposed = transposed.fillna("0")
+    transposed["category"] = category
+    
+    transposed["Content Related Title"] = transposed["Content Related Title"].apply(lambda x: x.strip("%"))
+    transposed["Content Related Title"] = transposed["Content Related Title"].astype("float")
+    transposed["Content Related Title"] = transposed["Content Related Title"] / 100
+    
+    transposed = transposed[[
+        "category",
+        "project_updateID",
+        "Project_Nr",
+        "Update_Nr",
+        "Content Related Title"]]
+    
+    return transposed
+
+
 #%% coding
 
 # IMPORT FILES FROM MAXQDA
 codeabdeckung_tech = pd.read_excel(os.path.join(maxqda_file_path, "2021-03-03_Codeabdeckung_Technology_Content.xlsx"))
 codeabdeckung_design = pd.read_excel(os.path.join(maxqda_file_path, "2021-03-11_Codeabdeckung_Design_Content.xlsx"))
+
+title_tech = pd.read_excel(os.path.join(maxqda_file_path, "2021-03-11_Codeabdeckung_Technology_Title.xlsx"))
+title_design = pd.read_excel(os.path.join(maxqda_file_path, "2021-03-11_Codeabdeckung_Design_Title.xlsx"))
 
 # GET creator experience
 creator_experience = pd.read_sql(query, con=sqlEngine)
@@ -143,13 +200,20 @@ creator_experience.loc[creator_experience["creator_experience"].str.contains("ba
 creator_experience["creator_experience"] = creator_experience["creator_experience"].str.split().str[0]
 creator_experience["creator_experience"] = creator_experience["creator_experience"].astype(int)
 
-# TODO: INSERT HERE - importing of codeabdeckung for the content related title and processing of it!! 
 
-long_raw_data_tech = create_long_raw_data_codeabdeckung(codeabdeckung_tech)
-long_raw_data_design = create_long_raw_data_codeabdeckung(codeabdeckung_design)
+long_raw_data_tech = create_long_raw_data_codeabdeckung(codeabdeckung_tech, category="technology", binary_coding=binary_coding_content)
+long_raw_data_design = create_long_raw_data_codeabdeckung(codeabdeckung_design, category="design", binary_coding=binary_coding_content)
+
+title_tech = create_long_data_title(title_tech, category="technology")
+title_design = create_long_data_title(title_design, category="design")
 
 # union tech and design long raw data
 long_raw_data = long_raw_data_tech.append(long_raw_data_design)
+title_data = title_tech.append(title_design)
+
+# remove projects that we do not want to be included in the analysis
+long_raw_data = long_raw_data[~long_raw_data["Project_Nr"].isin(projects_to_be_excluded)]
+title_data = title_data[~title_data["Project_Nr"].isin(projects_to_be_excluded)]
 
 # BRING TOGETHER WITH INFORMATION UPDATES THEMSELVES
 coding_tech = pd.read_excel(os.path.join(coding_file_path, "coding_updates_tech.xlsx"))
@@ -172,7 +236,7 @@ coding_df[["Project_Nr", "Update_Nr"]] = coding_df["project_updateID"].str.rspli
 
 coding_df = coding_df.drop(["original_link"], axis=1)
 
-# TODO: INSERT HERE: CLEAN CONTENT OF UPDATES
+# CLEAN CONTENT OF UPDATES
 
 coding_df["content"] = coding_df["content"].str.replace("\S*@\S*\s?", "", regex=True)  # email-addresses
 coding_df["content"] = coding_df["content"].str.replace("\n+", " ",regex=True)  # new line characters
@@ -241,18 +305,18 @@ update_level_data[["Project_Nr", "Update_Nr"]] = update_level_data["project_upda
 project_level_weekend = update_level_data[["Project_Nr", "bol_weekend"]].copy()
 project_level_weekend = project_level_weekend.groupby("Project_Nr").mean()
 
+title_data_merge = title_data[["category", "project_updateID", "Content Related Title"]]
+update_level_data = update_level_data.merge(title_data_merge, how="left", on=["category", "project_updateID"])
 
 
-# TODO: HERE OR SOMEWHERE ELSE? - GET THE category, project_nr, crowdfunding experience from SQL
-# TODO: clean the crowdfunding experience to an integer value
-
-project_level_xml_and_structural_data = update_level_data[["Project_Nr", "picture_count", "gif_count", "video_count", "like_count", "comment_count",
+project_level_xml_and_structural_data = update_level_data[["category", "Project_Nr", "picture_count", "gif_count", "video_count", "like_count", "comment_count",
                                             "count_organizational_optimism", "count_organizational_hope", "count_organizational_resilience",
                                             "count_organizational_confidence", "count_misspellings", "count_psycap", "count_prosocial",
-                                            "share_prosocial", "word_count"]].copy()
+                                            "share_prosocial", "word_count", "Content Related Title"]].copy()
+
 project_level_xml_and_structural_data = project_level_xml_and_structural_data.fillna(0)
-project_level_xml_and_structural_data = project_level_xml_and_structural_data.groupby("Project_Nr").mean()
-project_level_xml__and_structural_data = project_level_xml_and_structural_data.reset_index()
+project_level_xml_and_structural_data = project_level_xml_and_structural_data.groupby(["category", "Project_Nr"]).mean()
+project_level_xml_and_structural_data = project_level_xml_and_structural_data.reset_index()
 
 # get the project means for each type of information
 project_level_data_wide = update_level_data_wide.groupby("Project_Nr").mean()
@@ -273,12 +337,14 @@ project_level_data = project_level_data.reset_index()
 project_level_data = project_level_data.merge(project_level_weekend, how="left", on="Project_Nr")
 project_level_data = project_level_data.merge(project_level_xml_and_structural_data, how="left", on="Project_Nr")
 
+# add information about crowdfunding experience of the creator
+project_level_data = project_level_data.merge(creator_experience, how="left", on=["category", "Project_Nr"])
+
 
 
 #%% bring together with overview file
 overview_file = pd.read_csv(os.path.join(overview_file_path, "current_update_metadata.csv"))
 
-overview_file = overview_file.merge(creator_experience, how="left", on=["category", "Project_Nr"])
 
 statistics_hidden_updates = pd.read_csv(os.path.join(statistics_file_path, "updates_and_hidden_updates_within_duration.csv"))
 statistics_hidden_updates = statistics_hidden_updates.rename(columns={"projectID": "Project_Nr"})
@@ -290,10 +356,10 @@ overview_file["year"] = overview_file["deadline_date"].dt.year
 overview_file["deadline_date"] = overview_file["deadline_date"].dt.date
 
 
-overview_file = overview_file.drop(["Link", "state", "comments", "hidden_project", "save_path", "own_dev_comment", "updates_downloaded", "Images", "videos"],axis=1)
-overview_file = overview_file.rename(columns={"int_state":"state", "Duration":"duration", "Backers":"backers"})
+overview_file = overview_file.drop(["Link", "comments", "hidden_project", "save_path", "own_dev_comment", "updates_downloaded", "Images", "videos", "country_origin", "int_state"],axis=1)
+overview_file = overview_file.rename(columns={"Duration":"duration", "Backers":"backers"})
 
-project_level_data = project_level_data.merge(overview_file, how="left", on="Project_Nr")
+project_level_data = project_level_data.merge(overview_file, how="left", on=["Project_Nr", "category"])
 project_level_data = project_level_data.rename(columns={"updates_only_visible_for_backers":"hidden_updates_complete_duration"})
 
 # only verification
@@ -304,5 +370,25 @@ project_level_data = project_level_data.drop(["updates", "hidden_updates_complet
 
 project_level_data["perc_hidden_updates"] = project_level_data["hidden_updates_within_duration"] / project_level_data["total_updates_within_duration"]
 
+project_level_data = project_level_data.drop("total_updates_complete_duration", axis=1)
+
 
 #%% continue with update level data
+
+
+
+#%% save the data to a file
+
+if binary_coding_content:
+    print("Hellooooo")
+    excel_writer = pd.ExcelWriter(os.path.join(austausch_save_path, "project_level_binary_content.xlsx"), engine="xlsxwriter")
+    project_level_data.to_excel(excel_writer, sheet_name="data")
+    excel_writer.save()
+else:
+    
+    print("hellO")
+    
+    excel_writer = pd.ExcelWriter(os.path.join(austausch_save_path, "project_level_percentages_content.xlsx"), engine="xlsxwriter")
+    project_level_data.to_excel(excel_writer, sheet_name="data")
+    excel_writer.save()
+
