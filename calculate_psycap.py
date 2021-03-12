@@ -233,7 +233,7 @@ def wrapper_wordcount(loc_comments_df, bol_comment_df):
     psycap_comments_df = count_words_in_list(loc_comments_df=loc_comments_df)
     psycap_comments_df = psycap_comments_df.groupby("projectID").sum()
     
-    psycap_comments_df = [:, ]
+    psycap_comments_df = psycap_comments_df.loc[:, "count_organizational_optimism":"word_count"]
 # =============================================================================
 #     psycap_comments_df["shareOptimism"] = psycap_comments_df["count_organizational_optimism"] / psycap_comments_df[
 #         "commentLength"]
